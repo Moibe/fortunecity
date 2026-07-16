@@ -1003,7 +1003,7 @@
   @media (min-width: 860px) {
     .qnc-grid {
       grid-template-columns: 1.4fr 0.6fr;
-      align-items: start;
+      align-items: stretch;
     }
   }
 
