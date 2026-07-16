@@ -450,6 +450,7 @@
 
   // Distribución agrupada por Tipo (en vez de por proyecto). Mismo denominador
   // que la dona principal, así los porcentajes de ambas gráficas son comparables.
+  // Restante NO es un tipo — no entra a esta lista, se muestra aparte.
   const porTipo = $derived.by((): TipoRow[] => {
     const totales = new Map<string, number>();
     for (const g of gastos) {
@@ -463,9 +464,6 @@
     const rows: TipoRow[] = [...totales.keys()]
       .sort((a, b) => a.localeCompare(b))
       .map((tipo, i) => ({ tipo, monto: totales.get(tipo)!, color: PALETTE[i % PALETTE.length] }));
-    if (!sobregiro && restante > 0) {
-      rows.push({ tipo: 'Restante', monto: restante, color: RESTANTE_COLOR });
-    }
     return rows.sort((a, b) => b.monto - a.monto);
   });
 
@@ -917,6 +915,14 @@
             <li class="empty">Aún no hay gastos con monto para agrupar por tipo.</li>
           {/if}
         </ul>
+        {#if !sobregiro && restante > 0}
+          <div class="tipo-restante">
+            <span class="swatch" style="background: {RESTANTE_COLOR}"></span>
+            <span class="tr-name">Restante</span>
+            <span class="tr-val">{fmt.format(restante)}</span>
+            <span class="tr-pct">{pct(restante).toFixed(0)}%</span>
+          </div>
+        {/if}
       </div>
     </section>
   </div>
@@ -1869,5 +1875,28 @@
     display: block;
     color: rgba(255, 255, 255, 0.5);
     font-size: 0.85rem;
+  }
+  .tipo-restante {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+    padding-top: 0.7rem;
+    border-top: 1px dashed rgba(255, 255, 255, 0.14);
+    font-size: 0.9rem;
+  }
+  .tr-name {
+    flex: 1;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .tr-val {
+    color: rgba(255, 255, 255, 0.85);
+    font-variant-numeric: tabular-nums;
+  }
+  .tr-pct {
+    color: rgba(255, 255, 255, 0.45);
+    font-variant-numeric: tabular-nums;
+    min-width: 2.5em;
+    text-align: right;
   }
 </style>
