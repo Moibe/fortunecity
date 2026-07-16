@@ -2,6 +2,8 @@
   // Barra lateral "de vidrio" con el mismo tilt 3D que la superior. Incluye el handle
   // para replegar/mostrar. Publica su ancho real a la variable CSS --sidebar-width
   // para que el panel de contenido se ajuste solo. Items de ejemplo: reemplázalos.
+  import { page } from '$app/state';
+
   let {
     collapsed = false,
     toggleCollapsed
@@ -49,15 +51,15 @@
     onmouseleave={handleLeave}
   >
     <nav>
-      <a href="/qnc-dist" class="nav-item">
+      <a href="/" class="nav-item" aria-current={page.url.pathname === '/' ? 'page' : undefined}>
         <span class="nav-ico" aria-hidden="true"></span>
         <span>Qnc Dist</span>
       </a>
-      <a href="/" class="nav-item" aria-current="page">
+      <a href="/big-dbt" class="nav-item" aria-current={page.url.pathname === '/big-dbt' ? 'page' : undefined}>
         <span class="nav-ico" aria-hidden="true"></span>
         <span>Big Dbt</span>
       </a>
-      <a href="/med-dbt" class="nav-item">
+      <a href="/med-dbt" class="nav-item" aria-current={page.url.pathname === '/med-dbt' ? 'page' : undefined}>
         <span class="nav-ico" aria-hidden="true"></span>
         <span>Med Dbt</span>
       </a>
