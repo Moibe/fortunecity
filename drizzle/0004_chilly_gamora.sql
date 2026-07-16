@@ -1,0 +1,1 @@
+ALTER TABLE `renglones` ADD `notas` text DEFAULT '' NOT NULL;

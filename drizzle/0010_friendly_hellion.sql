@@ -1,0 +1,1 @@
+ALTER TABLE `entradas` ADD `nombre` text DEFAULT '' NOT NULL;

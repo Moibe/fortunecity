@@ -1,0 +1,1 @@
+ALTER TABLE `renglones` ADD `pagado` integer DEFAULT false NOT NULL;

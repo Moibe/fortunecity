@@ -49,17 +49,17 @@
     onmouseleave={handleLeave}
   >
     <nav>
+      <a href="/qnc-dist" class="nav-item">
+        <span class="nav-ico" aria-hidden="true"></span>
+        <span>Qnc Dist</span>
+      </a>
       <a href="/" class="nav-item" aria-current="page">
         <span class="nav-ico" aria-hidden="true"></span>
-        <span>Sección uno</span>
+        <span>Big Dbt</span>
       </a>
-      <a href="/seccion-dos" class="nav-item">
+      <a href="/med-dbt" class="nav-item">
         <span class="nav-ico" aria-hidden="true"></span>
-        <span>Sección dos</span>
-      </a>
-      <a href="/seccion-tres" class="nav-item">
-        <span class="nav-ico" aria-hidden="true"></span>
-        <span>Sección tres</span>
+        <span>Med Dbt</span>
       </a>
     </nav>
 

@@ -4,6 +4,9 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+	// Puerto fijo del dev (evita el 5173 por defecto, que dispara el banner "Abrir en la app").
+	server: { port: 5555, strictPort: true },
+	preview: { port: 5555, strictPort: true },
 	plugins: [
 		tailwindcss(),
 		sveltekit({

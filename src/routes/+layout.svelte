@@ -49,7 +49,7 @@
   }
   :global(body) {
     min-height: 100vh;
-    background: linear-gradient(135deg, #15803d 0%, #052e16 100%);
+    background: linear-gradient(135deg, #16a34a 0%, #064e2b 100%);
     background-attachment: fixed;
     color: rgba(255, 255, 255, 0.95);
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;

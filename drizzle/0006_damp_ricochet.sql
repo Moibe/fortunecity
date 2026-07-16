@@ -1,0 +1,1 @@
+ALTER TABLE `tipos_preset` ADD `icono` text;

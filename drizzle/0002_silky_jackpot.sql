@@ -1,0 +1,1 @@
+ALTER TABLE `renglones` ADD `tipo` text DEFAULT '' NOT NULL;

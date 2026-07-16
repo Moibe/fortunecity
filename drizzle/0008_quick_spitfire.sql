@@ -1,0 +1,1 @@
+ALTER TABLE `quincenas` ADD `remanente_anterior` real DEFAULT 0 NOT NULL;
