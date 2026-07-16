@@ -58,7 +58,8 @@ export const entradas = sqliteTable('entradas', {
 		.notNull()
 		.references(() => quincenas.id, { onDelete: 'cascade' }),
 	nombre: text('nombre').notNull().default(''), // ej. "Salario", "Bono" — opcional
-	monto: real('monto').notNull().default(0)
+	monto: real('monto').notNull().default(0),
+	fecha: integer('fecha', { mode: 'timestamp' }) // opcional, sin default: filas viejas quedan sin fecha
 });
 
 // ── Renglón de distribución ──────────────────────────────────────────────────
@@ -72,6 +73,7 @@ export const renglones = sqliteTable('renglones', {
 	nombre: text('nombre').notNull().default(''), // proyecto / concepto
 	tipo: text('tipo').notNull().default(''), // categoría del gasto — abierto por ahora, se acumulará para estadísticas
 	monto: real('monto').notNull().default(0),
+	fecha: integer('fecha', { mode: 'timestamp' }), // opcional, sin default: filas viejas quedan sin fecha
 	notas: text('notas').notNull().default(''), // texto libre, opcional
 	pagado: integer('pagado', { mode: 'boolean' }).notNull().default(false),
 	deudaId: integer('deuda_id').references(() => deudas.id, { onDelete: 'set null' }) // si es pago de deuda

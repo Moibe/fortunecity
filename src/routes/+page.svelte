@@ -118,12 +118,27 @@
     nombre: string;
     tipo: string;
     monto: number;
+    fecha: string; // "YYYY-MM-DD" para <input type="date">, '' si no tiene
     notas: string;
     pagado: boolean;
     deudaId: number | null;
   };
   type TipoPresetItem = { nombre: string; icono: string | null };
-  type EntradaItem = { id: number; nombre: string; monto: number };
+  type EntradaItem = { id: number; nombre: string; monto: number; fecha: string };
+
+  // Date | null (lo que carga Drizzle) <-> "YYYY-MM-DD" (lo que usa <input type="date">).
+  function fechaAInput(d: Date | string | null | undefined): string {
+    if (!d) return '';
+    const date = d instanceof Date ? d : new Date(d);
+    if (Number.isNaN(date.getTime())) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function hoyInput(): string {
+    return fechaAInput(new Date());
+  }
 
   let { data }: { data: PageData } = $props();
 
@@ -271,6 +286,7 @@
       nombre: r.nombre,
       tipo: r.tipo,
       monto: r.monto,
+      fecha: fechaAInput(r.fecha),
       notas: r.notas,
       pagado: r.pagado,
       deudaId: r.deudaId
@@ -281,13 +297,17 @@
     const entradasRows: EntradaItem[] = (q?.entradas ?? []).map((e) => ({
       id: e.id,
       nombre: e.nombre,
-      monto: e.monto
+      monto: e.monto,
+      fecha: fechaAInput(e.fecha)
     }));
     // Sin quincena cargada: default sensato a partir de la fecha de hoy.
     const hoy = new Date();
     return {
       id: q?.id ?? null,
-      entradas: entradasRows.length > 0 ? entradasRows : [{ id: 1, nombre: '', monto: q?.total ?? 0 }],
+      entradas:
+        entradasRows.length > 0
+          ? entradasRows
+          : [{ id: 1, nombre: '', monto: q?.total ?? 0, fecha: fechaAInput(hoy) }],
       remanenteAnterior: q?.remanenteAnterior ?? 0,
       anio: q?.anio ?? hoy.getFullYear(),
       mes: q?.mes ?? hoy.getMonth() + 1,
@@ -295,7 +315,7 @@
       gastos:
         rows.length > 0
           ? rows
-          : [{ id: 1, nombre: '', tipo: '', monto: 0, notas: '', pagado: false, deudaId: null }]
+          : [{ id: 1, nombre: '', tipo: '', monto: 0, fecha: fechaAInput(hoy), notas: '', pagado: false, deudaId: null }]
     };
   });
 
@@ -304,11 +324,11 @@
   let nextEntradaId = Math.max(0, ...inicial.entradas.map((e) => e.id)) + 1;
   const total = $derived(entradas.reduce((s, e) => s + (Number(e.monto) || 0), 0));
   function agregarEntrada() {
-    entradas.push({ id: nextEntradaId++, nombre: '', monto: 0 });
+    entradas.push({ id: nextEntradaId++, nombre: '', monto: 0, fecha: hoyInput() });
   }
   function quitarEntrada(id: number) {
     entradas = entradas.filter((e) => e.id !== id);
-    if (entradas.length === 0) entradas.push({ id: nextEntradaId++, nombre: '', monto: 0 });
+    if (entradas.length === 0) entradas.push({ id: nextEntradaId++, nombre: '', monto: 0, fecha: hoyInput() });
   }
   let remanenteAnterior = $state<number>(inicial.remanenteAnterior);
   let anio = $state<number>(inicial.anio);
@@ -326,7 +346,7 @@
   const payload = $derived(
     JSON.stringify({
       id: quincenaId,
-      entradas: entradas.map((e) => ({ nombre: e.nombre, monto: e.monto })),
+      entradas: entradas.map((e) => ({ nombre: e.nombre, monto: e.monto, fecha: e.fecha || null })),
       remanenteAnterior,
       anio,
       mes,
@@ -335,6 +355,7 @@
         nombre: g.nombre,
         tipo: g.tipo,
         monto: g.monto,
+        fecha: g.fecha || null,
         notas: g.notas,
         pagado: g.pagado,
         deudaId: g.deudaId
@@ -468,12 +489,12 @@
   });
 
   function agregar() {
-    gastos.push({ id: nextId++, nombre: '', tipo: '', monto: 0, notas: '', pagado: false, deudaId: null });
+    gastos.push({ id: nextId++, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null });
   }
   function quitar(id: number) {
     gastos = gastos.filter((g) => g.id !== id);
     if (gastos.length === 0)
-      gastos.push({ id: nextId++, nombre: '', tipo: '', monto: 0, notas: '', pagado: false, deudaId: null });
+      gastos.push({ id: nextId++, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null });
   }
 </script>
 
@@ -628,6 +649,7 @@
       <div class="entradas-field">
         <div class="entradas-head">
           <span class="h-entrada-nombre">Nombre</span>
+          <span class="h-entrada-fecha">Fecha</span>
           <span class="h-entrada-monto">Monto</span>
         </div>
 
@@ -635,6 +657,7 @@
 
         <div class="entrada-row">
           <span class="entrada-row-label">Remanente Anterior</span>
+          <span></span>
           <div class="entrada-monto-cell">
             <span class="cur">$</span>
             <input
@@ -651,6 +674,7 @@
             <div class="entrada-nombre-cell">
               {@render nombreEntrada(entrada, `Entrada ${i + 1}`, 'entrada-row-label')}
             </div>
+            <input class="entrada-fecha" type="date" bind:value={entrada.fecha} />
             <div class="entrada-monto-cell">
               <span class="cur">$</span>
               <input
@@ -672,6 +696,7 @@
         <div class="gastos-head">
           <span class="h-proyecto">Proyecto</span>
           <span class="h-tipo">Tipo</span>
+          <span class="h-fecha">Fecha</span>
           <span class="h-monto">Monto</span>
           <span class="h-notas">Notas</span>
           <span class="h-pagado">Pagado</span>
@@ -780,6 +805,7 @@
                 </div>
               {/if}
             </div>
+            <input class="g-fecha" type="date" bind:value={g.fecha} />
             <div class="g-monto">
               <span class="cur">$</span>
               <input
@@ -1079,7 +1105,7 @@
   }
   .entradas-head {
     display: grid;
-    grid-template-columns: 1fr 130px 28px;
+    grid-template-columns: 1fr 140px 130px 28px;
     gap: 0.5rem;
     padding: 0 0.2rem 0.4rem;
     font-size: 0.72rem;
@@ -1089,11 +1115,21 @@
   }
   .entrada-row {
     display: grid;
-    grid-template-columns: 1fr 130px 28px;
+    grid-template-columns: 1fr 140px 130px 28px;
     gap: 0.5rem;
     align-items: center;
     padding: 0.35rem 0.2rem;
     border-radius: 8px;
+  }
+  .entrada-fecha {
+    color-scheme: dark;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.82rem;
+    width: 100%;
+    box-sizing: border-box;
   }
   .entrada-nombre-cell {
     min-width: 0;
@@ -1278,7 +1314,7 @@
   }
   .gastos-head {
     display: grid;
-    grid-template-columns: 24px 1fr 145px 95px 44px 36px 28px;
+    grid-template-columns: 24px 1fr 145px 140px 95px 44px 36px 28px;
     gap: 0.5rem;
     padding: 0 0.2rem 0.4rem;
     font-size: 0.72rem;
@@ -1292,18 +1328,21 @@
   .h-tipo {
     grid-column: 3;
   }
-  .h-monto {
+  .h-fecha {
     grid-column: 4;
   }
-  .h-notas {
+  .h-monto {
     grid-column: 5;
   }
-  .h-pagado {
+  .h-notas {
     grid-column: 6;
+  }
+  .h-pagado {
+    grid-column: 7;
   }
   .gasto-row {
     display: grid;
-    grid-template-columns: 24px 1fr 145px 95px 44px 36px 28px;
+    grid-template-columns: 24px 1fr 145px 140px 95px 44px 36px 28px;
     gap: 0.5rem;
     align-items: center;
     padding: 0.35rem 0.2rem;
@@ -1348,6 +1387,16 @@
   .g-nombre,
   .g-tipo {
     font-size: 0.9rem;
+  }
+  .g-fecha {
+    color-scheme: dark;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.82rem;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* ── Combobox de Tipo (propio, no <datalist> nativo) ────────────────────── */

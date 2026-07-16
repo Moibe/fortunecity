@@ -28,19 +28,27 @@ type PayloadRenglon = {
 	nombre: string;
 	tipo: string;
 	monto: number;
+	fecha: string | null;
 	notas: string;
 	pagado: boolean;
 	deudaId: number | null;
 };
 type Payload = {
 	id: number | null;
-	entradas: { nombre: string; monto: number }[];
+	entradas: { nombre: string; monto: number; fecha: string | null }[];
 	remanenteAnterior: number;
 	anio: number;
 	mes: number;
 	corte: number;
 	renglones: PayloadRenglon[];
 };
+
+// "YYYY-MM-DD" (de <input type="date">) -> Date, o null si viene vacío/inválido.
+function parseFecha(v: string | null | undefined): Date | null {
+	if (!v) return null;
+	const d = new Date(`${v}T00:00:00`);
+	return Number.isNaN(d.getTime()) ? null : d;
+}
 
 export const actions: Actions = {
 	guardar: async ({ request }) => {
@@ -57,7 +65,8 @@ export const actions: Actions = {
 
 		const entradaRows = (data.entradas ?? []).map((e) => ({
 			nombre: (e.nombre ?? '').trim(),
-			monto: Number(e.monto) || 0
+			monto: Number(e.monto) || 0,
+			fecha: parseFecha(e.fecha)
 		}));
 		const total = entradaRows.reduce((s, e) => s + e.monto, 0);
 		const remanenteAnterior = Number(data.remanenteAnterior) || 0;
@@ -71,6 +80,7 @@ export const actions: Actions = {
 				nombre: (r.nombre ?? '').trim(),
 				tipo: (r.tipo ?? '').trim(),
 				monto: Number(r.monto) || 0,
+				fecha: parseFecha(r.fecha),
 				notas: (r.notas ?? '').trim(),
 				pagado: Boolean(r.pagado),
 				deudaId: r.deudaId ?? null
