@@ -1318,7 +1318,7 @@
   }
   .gastos-head {
     display: grid;
-    grid-template-columns: 24px 1fr 145px 140px 95px 44px 36px 28px;
+    grid-template-columns: 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 28px;
     gap: 0.5rem;
     padding: 0 0.2rem 0.4rem;
     font-size: 0.72rem;
@@ -1346,7 +1346,7 @@
   }
   .gasto-row {
     display: grid;
-    grid-template-columns: 24px 1fr 145px 140px 95px 44px 36px 28px;
+    grid-template-columns: 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 28px;
     gap: 0.5rem;
     align-items: center;
     padding: 0.35rem 0.2rem;
