@@ -630,6 +630,9 @@
           <span class="h-entrada-nombre">Nombre</span>
           <span class="h-entrada-monto">Monto</span>
         </div>
+
+        <button class="add" type="button" onclick={agregarEntrada}>+ Agregar entrada</button>
+
         <div class="entrada-row">
           <span class="entrada-row-label">Remanente Anterior</span>
           <div class="entrada-monto-cell">
@@ -662,8 +665,6 @@
           </div>
         {/each}
 
-        <button class="add" type="button" onclick={agregarEntrada}>+ Agregar entrada</button>
-
         <div class="entradas-total">Disponible (entradas + remanente): <b>{fmt.format(disponible)}</b></div>
       </div>
 
@@ -675,6 +676,9 @@
           <span class="h-notas">Notas</span>
           <span class="h-pagado">Pagado</span>
         </div>
+
+        <button class="add" type="button" onclick={agregar}>+ Agregar proyecto</button>
+
         {#each gastos as g, i (g.id)}
           <div
             class="gasto-row"
@@ -826,8 +830,6 @@
             <button class="del" type="button" onclick={() => quitar(g.id)} aria-label="Quitar proyecto">×</button>
           </div>
         {/each}
-
-        <button class="add" type="button" onclick={agregar}>+ Agregar proyecto</button>
       </div>
 
       <div class="totales">
@@ -1689,7 +1691,7 @@
     border-color: rgba(239, 68, 68, 0.4);
   }
   .add {
-    margin-top: 0.6rem;
+    margin-bottom: 0.6rem;
     width: 100%;
     padding: 0.55rem;
     color: rgba(255, 255, 255, 0.85);
