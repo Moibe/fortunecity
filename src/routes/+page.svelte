@@ -481,10 +481,6 @@
 
 <div class="qnc">
   <header class="qnc-head">
-    <div>
-      <h1>Distribución</h1>
-      <p class="sub">Anota lo que recibiste y repártelo por proyecto.</p>
-    </div>
     <span class="save-status" class:dirty>
       {guardando ? 'Guardando…' : dirty ? 'Sin guardar…' : 'Guardado ✓'}
     </span>
@@ -494,6 +490,10 @@
     <!-- ── Captura ─────────────────────────────────────────────────────── -->
     <section class="capture">
       <div class="top-row">
+        <div class="capture-title">
+          <h1>Distribución</h1>
+          <p class="sub">Anota lo que recibiste y repártelo por proyecto.</p>
+        </div>
         <div class="quincena-field">
           <span class="total-label">Quincena</span>
           {#if editandoQuincena}
@@ -932,15 +932,16 @@
   .qnc-head {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 1rem;
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.75rem;
   }
-  .qnc-head h1 {
+  .capture-title h1 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 600;
     letter-spacing: 0.01em;
+    color: rgba(255, 255, 255, 0.98);
   }
   .sub {
     margin: 0.25rem 0 0;
@@ -988,7 +989,7 @@
   /* ── Fila superior: Quincena ──────────────────────────────────────────────── */
   .top-row {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
     margin-bottom: 1.25rem;
