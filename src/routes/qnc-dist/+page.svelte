@@ -196,6 +196,21 @@
     }
   }
 
+  // Borra un Tipo del catálogo (no afecta a los renglones que ya lo usan).
+  async function borrarTipoDelCatalogo(nombre: string) {
+    try {
+      const body = new FormData();
+      body.set('nombre', nombre);
+      const response = await fetch('?/borrarTipo', { method: 'POST', body });
+      const result = deserialize(await response.text());
+      if (result.type === 'success') {
+        tiposPresetList = tiposPresetList.filter((t) => t.nombre.toLowerCase() !== nombre.toLowerCase());
+      }
+    } catch (e) {
+      console.error('No se pudo borrar el tipo del catálogo', e);
+    }
+  }
+
   // Catálogo de nombres de Entrada (mismo mecanismo que Tipos, sin ícono):
   // dropdown propio + estrellita para agregar uno nuevo, permanente en la base.
   let entradaPresetList = $state<string[]>(untrack(() => data.entradaNombresPreset ?? []));
@@ -223,6 +238,21 @@
       console.error('No se pudo agregar el nombre de entrada al catálogo', e);
     } finally {
       guardandoNombreEntrada = null;
+    }
+  }
+
+  // Borra un nombre de Entrada del catálogo (no afecta a las entradas ya guardadas).
+  async function borrarNombreEntradaDelCatalogo(nombre: string) {
+    try {
+      const body = new FormData();
+      body.set('nombre', nombre);
+      const response = await fetch('?/borrarNombreEntrada', { method: 'POST', body });
+      const result = deserialize(await response.text());
+      if (result.type === 'success') {
+        entradaPresetList = entradaPresetList.filter((n) => n.toLowerCase() !== nombre.toLowerCase());
+      }
+    } catch (e) {
+      console.error('No se pudo borrar el nombre de entrada del catálogo', e);
     }
   }
 
@@ -278,6 +308,7 @@
   }
   function quitarEntrada(id: number) {
     entradas = entradas.filter((e) => e.id !== id);
+    if (entradas.length === 0) entradas.push({ id: nextEntradaId++, nombre: '', monto: 0 });
   }
   let remanenteAnterior = $state<number>(inicial.remanenteAnterior);
   let anio = $state<number>(inicial.anio);
@@ -463,20 +494,6 @@
     <!-- ── Captura ─────────────────────────────────────────────────────── -->
     <section class="capture">
       <div class="top-row">
-        <label class="remanente-field">
-          <span class="remanente-label">Remanente Anterior</span>
-          <div class="remanente-input">
-            <span class="cur">$</span>
-            <input
-              type="text"
-              inputmode="decimal"
-              value={formatearMiles(String(remanenteAnterior))}
-              use:miles={{ get: () => remanenteAnterior, set: (v) => (remanenteAnterior = v) }}
-              placeholder="0.00"
-            />
-          </div>
-        </label>
-
         <div class="quincena-field">
           <span class="total-label">Quincena</span>
           {#if editandoQuincena}
@@ -554,8 +571,23 @@
                 <ul class="entrada-nombre-dropdown">
                   {#each entradaPresetList as opt (opt)}
                     <li>
-                      <button type="button" onmousedown={(ev) => ev.preventDefault()} onclick={() => (entrada.nombre = opt)}>
+                      <button
+                        type="button"
+                        class="opt-select"
+                        onmousedown={(ev) => ev.preventDefault()}
+                        onclick={() => (entrada.nombre = opt)}
+                      >
                         {opt}
+                      </button>
+                      <button
+                        type="button"
+                        class="opt-del"
+                        onmousedown={(ev) => ev.preventDefault()}
+                        onclick={() => borrarNombreEntradaDelCatalogo(opt)}
+                        aria-label="Borrar '{opt}' del catálogo"
+                        title="Borrar del catálogo"
+                      >
+                        ×
                       </button>
                     </li>
                   {/each}
@@ -590,49 +622,45 @@
       {/snippet}
 
       <div class="entradas-field">
-        <div class="entrada-row-main">
-          <div class="total-field">
-            {#if entradas.length > 1}
-              {@render nombreEntrada(entradas[0], 'Entrada 1', 'total-label')}
-            {:else}
-              <span class="total-label">Total de la quincena</span>
-            {/if}
-            <div class="total-input">
+        <div class="entradas-head">
+          <span class="h-entrada-nombre">Nombre</span>
+          <span class="h-entrada-monto">Monto</span>
+        </div>
+        <div class="entrada-row">
+          <span class="entrada-row-label">Remanente Anterior</span>
+          <div class="entrada-monto-cell">
+            <span class="cur">$</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              value={formatearMiles(String(remanenteAnterior))}
+              use:miles={{ get: () => remanenteAnterior, set: (v) => (remanenteAnterior = v) }}
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+        {#each entradas as entrada, i (entrada.id)}
+          <div class="entrada-row">
+            <div class="entrada-nombre-cell">
+              {@render nombreEntrada(entrada, `Entrada ${i + 1}`, 'entrada-row-label')}
+            </div>
+            <div class="entrada-monto-cell">
               <span class="cur">$</span>
               <input
                 type="text"
                 inputmode="decimal"
-                value={formatearMiles(String(entradas[0].monto))}
-                use:miles={{ get: () => entradas[0].monto, set: (v) => (entradas[0].monto = v) }}
+                value={formatearMiles(String(entrada.monto))}
+                use:miles={{ get: () => entrada.monto, set: (v) => (entrada.monto = v) }}
                 placeholder="0.00"
               />
             </div>
-          </div>
-          <button type="button" class="entrada-add" onclick={agregarEntrada} aria-label="Agregar otra entrada" title="Agregar otra entrada">+</button>
-        </div>
-
-        {#each entradas.slice(1) as e, i (e.id)}
-          <div class="entrada-row-extra">
-            <div class="entrada-extra-field">
-              {@render nombreEntrada(e, `Entrada ${i + 2}`, 'entrada-extra-label')}
-              <div class="entrada-extra-input">
-                <span class="cur">$</span>
-                <input
-                  type="text"
-                  inputmode="decimal"
-                  value={formatearMiles(String(e.monto))}
-                  use:miles={{ get: () => e.monto, set: (v) => (e.monto = v) }}
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-            <button type="button" class="entrada-remove" onclick={() => quitarEntrada(e.id)} aria-label="Quitar esta entrada">×</button>
+            <button type="button" class="del" onclick={() => quitarEntrada(entrada.id)} aria-label="Quitar entrada">×</button>
           </div>
         {/each}
 
-        {#if entradas.length > 1}
-          <div class="entradas-total">Disponible (entradas + remanente): <b>{fmt.format(disponible)}</b></div>
-        {/if}
+        <button class="add" type="button" onclick={agregarEntrada}>+ Agregar entrada</button>
+
+        <div class="entradas-total">Disponible (entradas + remanente): <b>{fmt.format(disponible)}</b></div>
       </div>
 
       <div class="gastos">
@@ -690,9 +718,24 @@
                   {#each sugerenciasTipo() as t (t.nombre)}
                     {@const Icono = t.icono ? ICONOS_MAP[t.icono] : null}
                     <li>
-                      <button type="button" onmousedown={(e) => e.preventDefault()} onclick={() => elegirTipo(g, t.nombre)}>
+                      <button
+                        type="button"
+                        class="opt-select"
+                        onmousedown={(e) => e.preventDefault()}
+                        onclick={() => elegirTipo(g, t.nombre)}
+                      >
                         {#if Icono}<Icono size={14} />{/if}
                         <span>{t.nombre}</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="opt-del"
+                        onmousedown={(e) => e.preventDefault()}
+                        onclick={() => borrarTipoDelCatalogo(t.nombre)}
+                        aria-label="Borrar '{t.nombre}' del catálogo"
+                        title="Borrar del catálogo"
+                      >
+                        ×
                       </button>
                     </li>
                   {/each}
@@ -936,10 +979,10 @@
     padding: 1.25rem;
   }
 
-  /* ── Fila superior: Remanente Anterior + Quincena en una sola línea ──────── */
+  /* ── Fila superior: Quincena ──────────────────────────────────────────────── */
   .top-row {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-start;
     gap: 1rem;
     margin-bottom: 1.25rem;
@@ -1005,41 +1048,6 @@
     border-color: rgba(134, 239, 172, 0.4);
   }
 
-  /* ── Remanente anterior (más chico, menos peso visual que Total) ─────────── */
-  .remanente-field {
-    display: block;
-  }
-  .remanente-label {
-    display: block;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: rgba(255, 255, 255, 0.45);
-    margin-bottom: 0.3rem;
-  }
-  .remanente-input {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    background: rgba(0, 0, 0, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
-    padding: 0.4rem 0.65rem;
-    max-width: 200px;
-    transition: border-color 0.15s ease;
-  }
-  .remanente-input:focus-within {
-    border-color: rgba(134, 239, 172, 0.6);
-  }
-  .remanente-input .cur {
-    font-size: 0.95rem;
-    color: rgba(255, 255, 255, 0.45);
-  }
-  .remanente-input input {
-    font-size: 1rem;
-    width: 100%;
-  }
-
   /* ── Total ───────────────────────────────────────────────────────────── */
   .total-label {
     display: block;
@@ -1049,91 +1057,61 @@
     color: rgba(255, 255, 255, 0.6);
     margin-bottom: 0.4rem;
   }
-  .total-input {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: rgba(0, 0, 0, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 10px;
-    padding: 0.6rem 0.9rem;
-    transition: border-color 0.15s ease;
-  }
-  .total-input:focus-within {
-    border-color: rgba(134, 239, 172, 0.7);
-  }
-  .total-input .cur {
-    font-size: 1.4rem;
-    color: rgba(255, 255, 255, 0.55);
-  }
-  .total-input input {
-    font-size: 1.8rem;
-    font-weight: 600;
-    width: 100%;
-  }
 
-  /* ── Entradas: la primera se ve como el Total de siempre; el "+" agrega más ── */
+  /* ── Entradas: listado parejo, mismo lenguaje visual que Gastos ──────────── */
   .entradas-field {
     margin-bottom: 1.4rem;
   }
-  .entrada-row-main {
-    display: flex;
-    align-items: flex-end;
+  .entradas-head {
+    display: grid;
+    grid-template-columns: 1fr 130px 28px;
     gap: 0.5rem;
-  }
-  .entrada-row-main .total-field {
-    flex: 1;
-    min-width: 0;
-  }
-  .entrada-add {
-    flex-shrink: 0;
-    width: 46px;
-    height: 46px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-    font-weight: 300;
-    line-height: 1;
-    color: rgba(255, 255, 255, 0.7);
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  }
-  .entrada-add:hover {
-    background: rgba(134, 239, 172, 0.16);
-    border-color: rgba(134, 239, 172, 0.4);
-    color: #fff;
-  }
-  .entrada-row-extra {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-  }
-  .entrada-extra-field {
-    flex: 1;
-    min-width: 0;
-  }
-  .entrada-extra-label {
-    display: block;
+    padding: 0 0.2rem 0.4rem;
     font-size: 0.72rem;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.06em;
     color: rgba(255, 255, 255, 0.45);
-    margin-bottom: 0.25rem;
+  }
+  .entrada-row {
+    display: grid;
+    grid-template-columns: 1fr 130px 28px;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.35rem 0.2rem;
+    border-radius: 8px;
+  }
+  .entrada-nombre-cell {
+    min-width: 0;
+  }
+  .entrada-monto-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    padding: 0.35rem 0.55rem;
+  }
+  .entrada-monto-cell .cur {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+  }
+  .entrada-monto-cell input {
+    text-align: right;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .entrada-row-label {
+    display: block;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.85);
   }
   .entrada-label-row {
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    margin-bottom: 0.25rem;
   }
-  .entrada-label-row .total-label,
-  .entrada-label-row .entrada-extra-label {
-    margin-bottom: 0;
+  .entrada-label-row .entrada-row-label {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1151,13 +1129,15 @@
     border-bottom: 1px solid rgba(134, 239, 172, 0.6);
     padding-bottom: 0.15rem;
     padding-right: 1.6rem;
+    text-transform: none; /* mientras se edita, se ve tal cual se teclea */
+    letter-spacing: normal;
   }
   .entrada-nombre-input:focus {
     outline: none;
   }
   .entrada-nombre-input::placeholder {
+    text-transform: none;
     color: rgba(255, 255, 255, 0.35);
-    text-transform: uppercase;
   }
   .entrada-nombre-chevron {
     position: absolute;
@@ -1205,11 +1185,13 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   }
   .entrada-nombre-dropdown li {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
   }
-  .entrada-nombre-dropdown button {
-    display: block;
-    width: 100%;
+  .entrada-nombre-dropdown .opt-select {
+    flex: 1;
+    min-width: 0;
     text-align: left;
     padding: 0.4rem 0.55rem;
     color: rgba(255, 255, 255, 0.9);
@@ -1222,9 +1204,29 @@
     cursor: pointer;
     transition: background 0.12s ease;
   }
-  .entrada-nombre-dropdown button:hover {
+  .entrada-nombre-dropdown .opt-select:hover {
     background: rgba(134, 239, 172, 0.16);
     color: #fff;
+  }
+  .entrada-nombre-dropdown .opt-del {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.35);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+  .entrada-nombre-dropdown .opt-del:hover {
+    color: #fff;
+    background: rgba(239, 68, 68, 0.25);
   }
   .entrada-nombre-edit-btn {
     flex-shrink: 0;
@@ -1243,44 +1245,6 @@
   .entrada-nombre-edit-btn:hover {
     color: #fff;
     background: rgba(134, 239, 172, 0.16);
-  }
-  .entrada-extra-input {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    background: rgba(0, 0, 0, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
-    padding: 0.4rem 0.65rem;
-  }
-  .entrada-extra-input .cur {
-    font-size: 0.95rem;
-    color: rgba(255, 255, 255, 0.45);
-  }
-  .entrada-extra-input input {
-    font-size: 1rem;
-    width: 100%;
-  }
-  .entrada-remove {
-    flex-shrink: 0;
-    width: 26px;
-    height: 26px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    line-height: 1;
-    color: rgba(255, 255, 255, 0.5);
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .entrada-remove:hover {
-    color: #fff;
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.4);
   }
   .entradas-total {
     margin-top: 0.6rem;
@@ -1356,6 +1320,8 @@
   }
   .g-monto input {
     text-align: right;
+    font-size: 1rem;
+    font-weight: 600;
   }
   .g-nombre,
   .g-tipo {
@@ -1364,8 +1330,9 @@
     border-radius: 8px;
     padding: 0.45rem 0.6rem;
   }
+  .g-nombre,
   .g-tipo {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
 
   /* ── Combobox de Tipo (propio, no <datalist> nativo) ────────────────────── */
@@ -1437,13 +1404,16 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   }
   .tipo-dropdown li {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
   }
-  .tipo-dropdown button {
+  .tipo-dropdown .opt-select {
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     text-align: left;
     padding: 0.4rem 0.55rem;
     color: rgba(255, 255, 255, 0.9);
@@ -1455,13 +1425,33 @@
     cursor: pointer;
     transition: background 0.12s ease;
   }
-  .tipo-dropdown button :global(svg) {
+  .tipo-dropdown .opt-select :global(svg) {
     flex-shrink: 0;
     color: rgba(134, 239, 172, 0.85);
   }
-  .tipo-dropdown button:hover {
+  .tipo-dropdown .opt-select:hover {
     background: rgba(134, 239, 172, 0.16);
     color: #fff;
+  }
+  .tipo-dropdown .opt-del {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.35);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+  .tipo-dropdown .opt-del:hover {
+    color: #fff;
+    background: rgba(239, 68, 68, 0.25);
   }
 
   /* ── Selector de ícono para el catálogo de Tipos ─────────────────────────── */

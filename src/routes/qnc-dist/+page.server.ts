@@ -140,5 +140,36 @@ export const actions: Actions = {
 		}
 
 		return { success: true, nombre };
+	},
+
+	// Borra un Tipo del catálogo (no afecta a los renglones que ya lo usan:
+	// `tipo` es texto libre, no una referencia a tiposPreset).
+	borrarTipo: async ({ request }) => {
+		const form = await request.formData();
+		const nombre = String(form.get('nombre') ?? '').trim();
+		if (!nombre) return fail(400, { error: 'nombre vacío' });
+
+		const existentes = await db.query.tiposPreset.findMany();
+		const existente = existentes.find((t) => t.nombre.toLowerCase() === nombre.toLowerCase());
+		if (existente) {
+			db.delete(tiposPreset).where(eq(tiposPreset.id, existente.id)).run();
+		}
+
+		return { success: true, nombre };
+	},
+
+	// Borra un nombre de Entrada del catálogo (no afecta a las entradas ya guardadas).
+	borrarNombreEntrada: async ({ request }) => {
+		const form = await request.formData();
+		const nombre = String(form.get('nombre') ?? '').trim();
+		if (!nombre) return fail(400, { error: 'nombre vacío' });
+
+		const existentes = await db.query.entradasPreset.findMany();
+		const existente = existentes.find((e) => e.nombre.toLowerCase() === nombre.toLowerCase());
+		if (existente) {
+			db.delete(entradasPreset).where(eq(entradasPreset.id, existente.id)).run();
+		}
+
+		return { success: true, nombre };
 	}
 };
