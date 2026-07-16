@@ -499,12 +499,6 @@
 </script>
 
 <div class="qnc">
-  <header class="qnc-head">
-    <span class="save-status" class:dirty>
-      {guardando ? 'Guardando…' : dirty ? 'Sin guardar…' : 'Guardado ✓'}
-    </span>
-  </header>
-
   <div class="qnc-grid">
     <!-- ── Captura ─────────────────────────────────────────────────────── -->
     <section class="capture">
@@ -955,6 +949,10 @@
           </div>
         {/if}
       </div>
+
+      <span class="save-status" class:dirty>
+        {guardando ? 'Guardando…' : dirty ? 'Sin guardar…' : 'Guardado ✓'}
+      </span>
     </section>
   </div>
 </div>
@@ -965,13 +963,6 @@
     margin: 0 auto;
     padding: 0.5rem 0.25rem 1rem;
     color: rgba(255, 255, 255, 0.95);
-  }
-  .qnc-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-    gap: 1rem;
-    margin-bottom: 0.75rem;
   }
   .capture-title h1 {
     margin: 0;
@@ -986,7 +977,9 @@
     font-size: 0.9rem;
   }
   .save-status {
-    flex-shrink: 0;
+    display: block;
+    width: fit-content;
+    margin: 1.25rem auto 0;
     padding: 0.4rem 0.9rem;
     font-size: 0.85rem;
     font-weight: 600;
