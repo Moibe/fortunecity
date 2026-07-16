@@ -647,13 +647,13 @@
       {/snippet}
 
       <div class="entradas-field">
+        <button class="add" type="button" onclick={agregarEntrada}>+ Agregar entrada</button>
+
         <div class="entradas-head">
           <span class="h-entrada-nombre">Nombre</span>
           <span class="h-entrada-fecha">Fecha</span>
           <span class="h-entrada-monto">Monto</span>
         </div>
-
-        <button class="add" type="button" onclick={agregarEntrada}>+ Agregar entrada</button>
 
         <div class="entrada-row">
           <span class="entrada-row-label">Remanente Anterior</span>
@@ -693,6 +693,8 @@
       </div>
 
       <div class="gastos">
+        <button class="add" type="button" onclick={agregar}>+ Agregar proyecto</button>
+
         <div class="gastos-head">
           <span class="h-proyecto">Proyecto</span>
           <span class="h-tipo">Tipo</span>
@@ -701,8 +703,6 @@
           <span class="h-notas">Notas</span>
           <span class="h-pagado">Pagado</span>
         </div>
-
-        <button class="add" type="button" onclick={agregar}>+ Agregar proyecto</button>
 
         {#each gastos as g, i (g.id)}
           <div
