@@ -650,12 +650,14 @@
         <button class="add" type="button" onclick={agregarEntrada}>+ Agregar entrada</button>
 
         <div class="entradas-head">
+          <span></span>
           <span class="h-entrada-nombre">Nombre</span>
           <span class="h-entrada-fecha">Fecha</span>
           <span class="h-entrada-monto">Monto</span>
         </div>
 
         <div class="entrada-row">
+          <span class="entrada-marker" aria-hidden="true">💵</span>
           <span class="entrada-row-label">Remanente Anterior</span>
           <span></span>
           <div class="entrada-monto-cell">
@@ -671,6 +673,7 @@
         </div>
         {#each entradas as entrada, i (entrada.id)}
           <div class="entrada-row">
+            <span class="entrada-marker" aria-hidden="true">💵</span>
             <div class="entrada-nombre-cell">
               {@render nombreEntrada(entrada, `Entrada ${i + 1}`, 'entrada-row-label')}
             </div>
@@ -1105,7 +1108,7 @@
   }
   .entradas-head {
     display: grid;
-    grid-template-columns: 1fr 140px 130px 28px;
+    grid-template-columns: 24px 1fr 140px 130px 28px;
     gap: 0.5rem;
     padding: 0 0.2rem 0.4rem;
     font-size: 0.72rem;
@@ -1115,11 +1118,19 @@
   }
   .entrada-row {
     display: grid;
-    grid-template-columns: 1fr 140px 130px 28px;
+    grid-template-columns: 24px 1fr 140px 130px 28px;
     gap: 0.5rem;
     align-items: center;
     padding: 0.35rem 0.2rem;
     border-radius: 8px;
+  }
+  .entrada-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    line-height: 1;
+    flex-shrink: 0;
   }
   .entrada-fecha {
     color-scheme: dark;
