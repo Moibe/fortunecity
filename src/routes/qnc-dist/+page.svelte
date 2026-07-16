@@ -575,7 +575,10 @@
                         type="button"
                         class="opt-select"
                         onmousedown={(ev) => ev.preventDefault()}
-                        onclick={() => (entrada.nombre = opt)}
+                        onclick={() => {
+                          entrada.nombre = opt;
+                          openEntradaDropdownFor = null;
+                        }}
                       >
                         {opt}
                       </button>
