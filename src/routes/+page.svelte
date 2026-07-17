@@ -88,7 +88,9 @@
   // foco a un elemento que ya lo tiene (como el input de Tipo mientras editas
   // su catálogo), pero llamar .focus() explícito sí funciona.
   function enfocar(node: HTMLElement) {
-    node.focus();
+    // Diferido al próximo frame: así gana cualquier carrera contra otros
+    // eventos de foco/blur que sigan resolviéndose del clic que lo disparó.
+    requestAnimationFrame(() => node.focus());
   }
 
   import {
@@ -265,6 +267,7 @@
     if (!viejo || guardandoRenombreTipo) return;
     if (!nuevo || nuevo.toLowerCase() === viejo.toLowerCase()) {
       renombrandoTipo = null;
+      openTipoFor = null;
       return;
     }
     guardandoRenombreTipo = true;
@@ -298,6 +301,7 @@
     } finally {
       guardandoRenombreTipo = false;
       renombrandoTipo = null;
+      openTipoFor = null;
     }
   }
 
@@ -884,9 +888,10 @@
                 autocomplete="off"
                 onfocus={() => (openTipoFor = g.id)}
                 onblur={(e) => {
+                  if (renombrandoTipo !== null) return; // hay un renombre en curso; no cierres el combobox
                   const wrap = (e.currentTarget as HTMLElement).closest('.tipo-wrap');
                   const next = e.relatedTarget as Node | null;
-                  if (wrap && next && wrap.contains(next)) return; // el foco solo se movió al input de renombrar / un botón del mismo combobox
+                  if (wrap && next && wrap.contains(next)) return; // el foco solo se movió a un botón del mismo combobox
                   openTipoFor = null;
                 }}
               />
@@ -924,7 +929,10 @@
                           use:enfocar
                           onkeydown={(e) => {
                             if (e.key === 'Enter') confirmarRenombreTipo();
-                            if (e.key === 'Escape') renombrandoTipo = null;
+                            if (e.key === 'Escape') {
+                              renombrandoTipo = null;
+                              openTipoFor = null;
+                            }
                           }}
                         />
                         <button
@@ -941,7 +949,10 @@
                           type="button"
                           class="opt-del"
                           onmousedown={(e) => e.preventDefault()}
-                          onclick={() => (renombrandoTipo = null)}
+                          onclick={() => {
+                            renombrandoTipo = null;
+                            openTipoFor = null;
+                          }}
                           aria-label="Cancelar renombrado"
                           title="Cancelar"
                         >
