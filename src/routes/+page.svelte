@@ -527,7 +527,7 @@
       const s = segments.find((x) => x.id === hovered);
       if (s) return { label: s.nombre, monto: s.monto, sub: `${pct(s.monto).toFixed(1)}%` };
     }
-    if (sobregiro) return { label: 'Te pasaste', monto: Math.abs(restante), sub: 'sobregiro' };
+    if (sobregiro) return { label: 'Te pasaste', monto: restante, sub: 'sobregiro' };
     return { label: 'Restante', monto: restante, sub: disponible > 0 ? `${pct(restante).toFixed(1)}%` : '—' };
   });
 
@@ -947,7 +947,7 @@
         <div class="t-row"><span>Asignado</span><b>{fmt.format(asignado)}</b></div>
         <div class="t-row" class:over={sobregiro}>
           <span>{sobregiro ? 'Sobregiro' : 'Restante'}</span>
-          <b>{fmt.format(sobregiro ? -restante : restante)}</b>
+          <b>{fmt.format(restante)}</b>
         </div>
       </div>
     </section>
