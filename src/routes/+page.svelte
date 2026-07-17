@@ -84,6 +84,13 @@
     };
   }
 
+  // Enfoca el nodo por JS al montarlo — el atributo autofocus no le "roba" el
+  // foco a un elemento que ya lo tiene (como el input de Tipo mientras editas
+  // su catálogo), pero llamar .focus() explícito sí funciona.
+  function enfocar(node: HTMLElement) {
+    node.focus();
+  }
+
   import {
     Banknote,
     NotepadText,
@@ -876,7 +883,12 @@
                 placeholder="Tipo (opcional)"
                 autocomplete="off"
                 onfocus={() => (openTipoFor = g.id)}
-                onblur={() => (openTipoFor = null)}
+                onblur={(e) => {
+                  const wrap = (e.currentTarget as HTMLElement).closest('.tipo-wrap');
+                  const next = e.relatedTarget as Node | null;
+                  if (wrap && next && wrap.contains(next)) return; // el foco solo se movió al input de renombrar / un botón del mismo combobox
+                  openTipoFor = null;
+                }}
               />
               {#if iconoComponentePara(g.tipo)}
                 {@const IconoActual = iconoComponentePara(g.tipo)}
@@ -905,12 +917,11 @@
                     {@const Icono = t.icono ? ICONOS_MAP[t.icono] : null}
                     <li>
                       {#if renombrandoTipo === t.nombre}
-                        <!-- svelte-ignore a11y_autofocus -->
                         <input
                           class="opt-rename-input"
                           type="text"
                           bind:value={nuevoNombreTipo}
-                          autofocus
+                          use:enfocar
                           onkeydown={(e) => {
                             if (e.key === 'Enter') confirmarRenombreTipo();
                             if (e.key === 'Escape') renombrandoTipo = null;
