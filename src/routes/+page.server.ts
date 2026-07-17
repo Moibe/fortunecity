@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { quincenas, renglones, entradas, tiposPreset, entradasPreset } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -150,6 +150,40 @@ export const actions: Actions = {
 		}
 
 		return { success: true, nombre };
+	},
+
+	// Renombra un Tipo: actualiza el catálogo Y todos los renglones de TODAS las
+	// quincenas que ya usan ese texto (no solo la que está cargada ahora mismo).
+	// Si el nombre nuevo ya existe como otro preset, se fusiona con ese (se borra
+	// el viejo) en vez de dejar dos entradas duplicadas en el catálogo.
+	renombrarTipo: async ({ request }) => {
+		const form = await request.formData();
+		const nombreViejo = String(form.get('nombreViejo') ?? '').trim();
+		const nombreNuevo = String(form.get('nombreNuevo') ?? '').trim();
+		if (!nombreViejo || !nombreNuevo) return fail(400, { error: 'nombres inválidos' });
+		if (nombreViejo.toLowerCase() === nombreNuevo.toLowerCase()) {
+			return { success: true, nombreNuevo };
+		}
+
+		const existentes = await db.query.tiposPreset.findMany();
+		const viejo = existentes.find((t) => t.nombre.toLowerCase() === nombreViejo.toLowerCase());
+		const yaExisteNuevo = existentes.find((t) => t.nombre.toLowerCase() === nombreNuevo.toLowerCase());
+
+		db.transaction((tx) => {
+			if (viejo) {
+				if (yaExisteNuevo && yaExisteNuevo.id !== viejo.id) {
+					tx.delete(tiposPreset).where(eq(tiposPreset.id, viejo.id)).run();
+				} else {
+					tx.update(tiposPreset).set({ nombre: nombreNuevo }).where(eq(tiposPreset.id, viejo.id)).run();
+				}
+			}
+			tx.update(renglones)
+				.set({ tipo: nombreNuevo })
+				.where(sql`lower(${renglones.tipo}) = lower(${nombreViejo})`)
+				.run();
+		});
+
+		return { success: true, nombreNuevo };
 	},
 
 	// Borra un Tipo del catálogo (no afecta a los renglones que ya lo usan:

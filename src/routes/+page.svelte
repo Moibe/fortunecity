@@ -243,6 +243,57 @@
     }
   }
 
+  // Renombrar un Tipo: cambia el catálogo Y, vía el servidor, TODOS los
+  // renglones ya guardados (de cualquier quincena) que usaban el nombre viejo.
+  let renombrandoTipo = $state<string | null>(null); // nombre actual que se está editando
+  let nuevoNombreTipo = $state('');
+  let guardandoRenombreTipo = $state(false);
+  function iniciarRenombreTipo(nombreActual: string) {
+    renombrandoTipo = nombreActual;
+    nuevoNombreTipo = nombreActual;
+  }
+  async function confirmarRenombreTipo() {
+    const viejo = renombrandoTipo;
+    const nuevo = nuevoNombreTipo.trim();
+    if (!viejo || guardandoRenombreTipo) return;
+    if (!nuevo || nuevo.toLowerCase() === viejo.toLowerCase()) {
+      renombrandoTipo = null;
+      return;
+    }
+    guardandoRenombreTipo = true;
+    try {
+      const body = new FormData();
+      body.set('nombreViejo', viejo);
+      body.set('nombreNuevo', nuevo);
+      const response = await fetch('?/renombrarTipo', { method: 'POST', body });
+      const result = deserialize(await response.text());
+      if (result.type === 'success') {
+        const idx = tiposPresetList.findIndex((t) => t.nombre.toLowerCase() === viejo.toLowerCase());
+        const yaExisteNuevo = tiposPresetList.some(
+          (t) => t.nombre.toLowerCase() === nuevo.toLowerCase() && t.nombre.toLowerCase() !== viejo.toLowerCase()
+        );
+        if (idx !== -1) {
+          if (yaExisteNuevo) {
+            tiposPresetList.splice(idx, 1); // se fusionó con el que ya existía
+          } else {
+            tiposPresetList[idx] = { ...tiposPresetList[idx], nombre: nuevo };
+          }
+          tiposPresetList.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        }
+        // Refleja el cambio en los gastos ya cargados, si no el próximo
+        // autoguardado reescribiría el nombre viejo encima del renombrado.
+        for (const g of gastos) {
+          if (g.tipo.trim().toLowerCase() === viejo.toLowerCase()) g.tipo = nuevo;
+        }
+      }
+    } catch (e) {
+      console.error('No se pudo renombrar el tipo', e);
+    } finally {
+      guardandoRenombreTipo = false;
+      renombrandoTipo = null;
+    }
+  }
+
   // Catálogo de nombres de Entrada (mismo mecanismo que Tipos, sin ícono):
   // dropdown propio + estrellita para agregar uno nuevo, permanente en la base.
   let entradaPresetList = $state<string[]>(untrack(() => data.entradaNombresPreset ?? []));
@@ -853,25 +904,69 @@
                   {#each sugerenciasTipo() as t (t.nombre)}
                     {@const Icono = t.icono ? ICONOS_MAP[t.icono] : null}
                     <li>
-                      <button
-                        type="button"
-                        class="opt-select"
-                        onmousedown={(e) => e.preventDefault()}
-                        onclick={() => elegirTipo(g, t.nombre)}
-                      >
-                        {#if Icono}<Icono size={14} />{/if}
-                        <span>{t.nombre}</span>
-                      </button>
-                      <button
-                        type="button"
-                        class="opt-del"
-                        onmousedown={(e) => e.preventDefault()}
-                        onclick={() => borrarTipoDelCatalogo(t.nombre)}
-                        aria-label="Borrar '{t.nombre}' del catálogo"
-                        title="Borrar del catálogo"
-                      >
-                        ×
-                      </button>
+                      {#if renombrandoTipo === t.nombre}
+                        <!-- svelte-ignore a11y_autofocus -->
+                        <input
+                          class="opt-rename-input"
+                          type="text"
+                          bind:value={nuevoNombreTipo}
+                          autofocus
+                          onkeydown={(e) => {
+                            if (e.key === 'Enter') confirmarRenombreTipo();
+                            if (e.key === 'Escape') renombrandoTipo = null;
+                          }}
+                        />
+                        <button
+                          type="button"
+                          class="opt-del"
+                          onmousedown={(e) => e.preventDefault()}
+                          onclick={confirmarRenombreTipo}
+                          aria-label="Confirmar nuevo nombre"
+                          title="Confirmar (cambia todos los gastos que usan '{t.nombre}')"
+                        >
+                          <Check size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          class="opt-del"
+                          onmousedown={(e) => e.preventDefault()}
+                          onclick={() => (renombrandoTipo = null)}
+                          aria-label="Cancelar renombrado"
+                          title="Cancelar"
+                        >
+                          ×
+                        </button>
+                      {:else}
+                        <button
+                          type="button"
+                          class="opt-select"
+                          onmousedown={(e) => e.preventDefault()}
+                          onclick={() => elegirTipo(g, t.nombre)}
+                        >
+                          {#if Icono}<Icono size={14} />{/if}
+                          <span>{t.nombre}</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="opt-rename"
+                          onmousedown={(e) => e.preventDefault()}
+                          onclick={() => iniciarRenombreTipo(t.nombre)}
+                          aria-label="Renombrar '{t.nombre}'"
+                          title="Renombrar (cambia todos los gastos que ya usan este tipo)"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          class="opt-del"
+                          onmousedown={(e) => e.preventDefault()}
+                          onclick={() => borrarTipoDelCatalogo(t.nombre)}
+                          aria-label="Borrar '{t.nombre}' del catálogo"
+                          title="Borrar del catálogo"
+                        >
+                          ×
+                        </button>
+                      {/if}
                     </li>
                   {/each}
                 </ul>
@@ -1673,6 +1768,39 @@
   .tipo-dropdown .opt-del:hover {
     color: #fff;
     background: rgba(239, 68, 68, 0.25);
+  }
+  .tipo-dropdown .opt-rename {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.35);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+  .tipo-dropdown .opt-rename:hover {
+    color: #fff;
+    background: rgba(134, 239, 172, 0.2);
+  }
+  .opt-rename-input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(134, 239, 172, 0.5);
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    color: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+  }
+  .opt-rename-input:focus {
+    outline: none;
+    border-color: rgba(134, 239, 172, 0.9);
   }
 
   /* ── Selector de ícono para el catálogo de Tipos ─────────────────────────── */
