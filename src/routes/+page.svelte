@@ -67,6 +67,23 @@
     };
   }
 
+  // Crece el textarea con su contenido (hasta el tope de max-height del CSS,
+  // que sigue teniendo scroll de respaldo) para no tener que hacer scroll
+  // con notas largas.
+  function autoAltura(node: HTMLTextAreaElement) {
+    function ajustar() {
+      node.style.height = 'auto';
+      node.style.height = `${node.scrollHeight}px`;
+    }
+    ajustar(); // por si ya trae texto largo al abrir
+    node.addEventListener('input', ajustar);
+    return {
+      destroy() {
+        node.removeEventListener('input', ajustar);
+      }
+    };
+  }
+
   import {
     Banknote,
     NotepadText,
@@ -919,7 +936,13 @@
                     <button type="button" class="notas-close" onclick={() => (openNotasFor = null)} aria-label="Cerrar notas">×</button>
                   </div>
                   <!-- svelte-ignore a11y_autofocus -->
-                  <textarea bind:value={g.notas} placeholder="Notas (opcional)" rows="3" autofocus></textarea>
+                  <textarea
+                    bind:value={g.notas}
+                    placeholder="Notas (opcional)"
+                    rows="3"
+                    autofocus
+                    use:autoAltura
+                  ></textarea>
                 </div>
               {/if}
             </div>
@@ -1819,7 +1842,9 @@
     width: 100%;
     box-sizing: border-box;
     min-height: 70px;
-    resize: vertical;
+    max-height: 320px;
+    overflow-y: auto;
+    resize: none;
     background: rgba(0, 0, 0, 0.18);
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 6px;
