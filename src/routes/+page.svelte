@@ -330,6 +330,36 @@
     entradas = entradas.filter((e) => e.id !== id);
     if (entradas.length === 0) entradas.push({ id: nextEntradaId++, nombre: '', monto: 0, fecha: hoyInput() });
   }
+
+  // Número "Entrada N" ESTABLE (orden en que se agregaron), para que no cambie
+  // solo porque ordenaste la tabla distinto.
+  const entradaNumeroPorId = $derived.by((): Map<number, number> => {
+    const map = new Map<number, number>();
+    entradas.forEach((e, i) => map.set(e.id, i + 1));
+    return map;
+  });
+
+  // ── Orden de la tabla de Entradas por columna (clic en el encabezado) ───────
+  type EntradaSortCol = 'nombre' | 'fecha' | 'monto';
+  let entradaSortCol = $state<EntradaSortCol | null>(null);
+  let entradaSortAsc = $state(true);
+  function ordenarEntradasPor(col: EntradaSortCol) {
+    if (entradaSortCol === col) {
+      entradaSortAsc = !entradaSortAsc;
+    } else {
+      entradaSortCol = col;
+      entradaSortAsc = true;
+    }
+  }
+  const entradasOrdenadas = $derived.by((): EntradaItem[] => {
+    if (!entradaSortCol) return entradas;
+    const dir = entradaSortAsc ? 1 : -1;
+    const col = entradaSortCol;
+    return [...entradas].sort((a, b) => {
+      if (col === 'monto') return ((Number(a.monto) || 0) - (Number(b.monto) || 0)) * dir;
+      return a[col].localeCompare(b[col]) * dir;
+    });
+  });
   let remanenteAnterior = $state<number>(inicial.remanenteAnterior);
   let anio = $state<number>(inicial.anio);
   let mes = $state<number>(inicial.mes);
@@ -455,6 +485,40 @@
       });
     }
     return segs;
+  });
+
+  // Color por gasto ESTABLE (mismo orden/índice que usa la dona), para que el
+  // punto de color de la tabla no cambie solo porque ordenaste la tabla distinto.
+  const colorPorGastoId = $derived.by((): Map<number, string> => {
+    const map = new Map<number, string>();
+    gastos
+      .filter((g) => (Number(g.monto) || 0) > 0)
+      .forEach((g, i) => map.set(g.id, PALETTE[i % PALETTE.length]));
+    return map;
+  });
+
+  // ── Orden de la tabla de Gastos por columna (clic en el encabezado) ─────────
+  type GastoSortCol = 'nombre' | 'tipo' | 'fecha' | 'monto' | 'pagado';
+  let gastoSortCol = $state<GastoSortCol | null>(null);
+  let gastoSortAsc = $state(true);
+  function ordenarGastosPor(col: GastoSortCol) {
+    if (gastoSortCol === col) {
+      gastoSortAsc = !gastoSortAsc;
+    } else {
+      gastoSortCol = col;
+      gastoSortAsc = true;
+    }
+  }
+  const gastosOrdenados = $derived.by((): Gasto[] => {
+    if (!gastoSortCol) return gastos;
+    const dir = gastoSortAsc ? 1 : -1;
+    const col = gastoSortCol;
+    return [...gastos].sort((a, b) => {
+      if (col === 'monto') return ((Number(a.monto) || 0) - (Number(b.monto) || 0)) * dir;
+      if (col === 'pagado') return ((a.pagado ? 1 : 0) - (b.pagado ? 1 : 0)) * dir;
+      // nombre / tipo / fecha son texto; fecha en "YYYY-MM-DD" ordena bien como texto.
+      return a[col].localeCompare(b[col]) * dir;
+    });
   });
 
   // Qué mostrar en el centro de la dona.
@@ -645,9 +709,18 @@
 
         <div class="entradas-head">
           <span></span>
-          <span class="h-entrada-nombre">Nombre</span>
-          <span class="h-entrada-fecha">Fecha</span>
-          <span class="h-entrada-monto">Monto</span>
+          <button type="button" class="h-entrada-nombre sortable" onclick={() => ordenarEntradasPor('nombre')}>
+            Nombre
+            {#if entradaSortCol === 'nombre'}<span class="sort-arrow">{entradaSortAsc ? '▲' : '▼'}</span>{/if}
+          </button>
+          <button type="button" class="h-entrada-fecha sortable" onclick={() => ordenarEntradasPor('fecha')}>
+            Fecha
+            {#if entradaSortCol === 'fecha'}<span class="sort-arrow">{entradaSortAsc ? '▲' : '▼'}</span>{/if}
+          </button>
+          <button type="button" class="h-entrada-monto sortable" onclick={() => ordenarEntradasPor('monto')}>
+            Monto
+            {#if entradaSortCol === 'monto'}<span class="sort-arrow">{entradaSortAsc ? '▲' : '▼'}</span>{/if}
+          </button>
         </div>
 
         <div class="entrada-row">
@@ -665,11 +738,11 @@
             />
           </div>
         </div>
-        {#each entradas as entrada, i (entrada.id)}
+        {#each entradasOrdenadas as entrada (entrada.id)}
           <div class="entrada-row">
             <span class="entrada-marker" aria-hidden="true">💵</span>
             <div class="entrada-nombre-cell">
-              {@render nombreEntrada(entrada, `Entrada ${i + 1}`, 'entrada-row-label')}
+              {@render nombreEntrada(entrada, `Entrada ${entradaNumeroPorId.get(entrada.id)}`, 'entrada-row-label')}
             </div>
             <input class="entrada-fecha" type="date" bind:value={entrada.fecha} />
             <div class="entrada-monto-cell">
@@ -693,15 +766,30 @@
         <button class="add" type="button" onclick={agregar}>+ Agregar proyecto</button>
 
         <div class="gastos-head">
-          <span class="h-proyecto">Proyecto</span>
-          <span class="h-tipo">Tipo</span>
-          <span class="h-fecha">Fecha</span>
-          <span class="h-monto">Monto</span>
+          <button type="button" class="h-proyecto sortable" onclick={() => ordenarGastosPor('nombre')}>
+            Proyecto
+            {#if gastoSortCol === 'nombre'}<span class="sort-arrow">{gastoSortAsc ? '▲' : '▼'}</span>{/if}
+          </button>
+          <button type="button" class="h-tipo sortable" onclick={() => ordenarGastosPor('tipo')}>
+            Tipo
+            {#if gastoSortCol === 'tipo'}<span class="sort-arrow">{gastoSortAsc ? '▲' : '▼'}</span>{/if}
+          </button>
+          <button type="button" class="h-fecha sortable" onclick={() => ordenarGastosPor('fecha')}>
+            Fecha
+            {#if gastoSortCol === 'fecha'}<span class="sort-arrow">{gastoSortAsc ? '▲' : '▼'}</span>{/if}
+          </button>
+          <button type="button" class="h-monto sortable" onclick={() => ordenarGastosPor('monto')}>
+            Monto
+            {#if gastoSortCol === 'monto'}<span class="sort-arrow">{gastoSortAsc ? '▲' : '▼'}</span>{/if}
+          </button>
           <span class="h-notas">Notas</span>
-          <span class="h-pagado">Pagado</span>
+          <button type="button" class="h-pagado sortable" onclick={() => ordenarGastosPor('pagado')}>
+            Pagado
+            {#if gastoSortCol === 'pagado'}<span class="sort-arrow">{gastoSortAsc ? '▲' : '▼'}</span>{/if}
+          </button>
         </div>
 
-        {#each gastos as g, i (g.id)}
+        {#each gastosOrdenados as g (g.id)}
           <div
             class="gasto-row"
             class:active={hovered === g.id}
@@ -709,7 +797,7 @@
             onmouseleave={() => (hovered = null)}
             role="listitem"
           >
-            <span class="swatch" style="background: {PALETTE[i % PALETTE.length]}"></span>
+            <span class="swatch" style="background: {colorPorGastoId.get(g.id) ?? 'rgba(255,255,255,0.3)'}"></span>
             <input class="g-nombre" type="text" bind:value={g.nombre} placeholder="¿En qué lo gastas?" />
             <div class="tipo-wrap">
               <input
@@ -1109,6 +1197,25 @@
     letter-spacing: 0.06em;
     color: rgba(255, 255, 255, 0.45);
   }
+  .entradas-head .sortable {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  .entradas-head .sortable:hover {
+    color: rgba(255, 255, 255, 0.85);
+  }
   .entrada-row {
     display: grid;
     grid-template-columns: 24px 1fr 140px 130px 28px;
@@ -1325,6 +1432,29 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: rgba(255, 255, 255, 0.45);
+  }
+  .gastos-head .sortable {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  .gastos-head .sortable:hover {
+    color: rgba(255, 255, 255, 0.85);
+  }
+  .sort-arrow {
+    font-size: 0.7em;
+    color: #86efac;
   }
   .h-proyecto {
     grid-column: 2;
