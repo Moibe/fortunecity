@@ -112,7 +112,14 @@
     Circle,
     CircleCheckBig,
     Pencil,
-    Check
+    Check,
+    Tv,
+    Heart,
+    Gamepad2,
+    Plane,
+    GraduationCap,
+    Dumbbell,
+    PawPrint
   } from '@lucide/svelte';
   import { deserialize } from '$app/forms';
   import { untrack } from 'svelte';
@@ -133,7 +140,14 @@
     { key: 'car', Icono: Car, label: 'Transporte' },
     { key: 'zap', Icono: Zap, label: 'Servicios' },
     { key: 'smartphone', Icono: Smartphone, label: 'Celular' },
-    { key: 'tag', Icono: Tag, label: 'General' }
+    { key: 'tag', Icono: Tag, label: 'General' },
+    { key: 'tv', Icono: Tv, label: 'Streaming' },
+    { key: 'heart', Icono: Heart, label: 'Salud' },
+    { key: 'gamepad-2', Icono: Gamepad2, label: 'Gaming' },
+    { key: 'plane', Icono: Plane, label: 'Viajes' },
+    { key: 'graduation-cap', Icono: GraduationCap, label: 'Educación' },
+    { key: 'dumbbell', Icono: Dumbbell, label: 'Ejercicio' },
+    { key: 'paw-print', Icono: PawPrint, label: 'Mascotas' }
   ];
   const ICONOS_MAP: Record<string, typeof Banknote> = Object.fromEntries(
     ICONOS_DISPONIBLES.map((i) => [i.key, i.Icono])
