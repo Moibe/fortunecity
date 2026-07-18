@@ -119,7 +119,8 @@
     Plane,
     GraduationCap,
     Dumbbell,
-    PawPrint
+    PawPrint,
+    Palette
   } from '@lucide/svelte';
   import { deserialize } from '$app/forms';
   import { untrack } from 'svelte';
@@ -221,8 +222,11 @@
     openTipoFor = null;
   }
 
-  // id del renglón cuyo selector de ícono está abierto (null = ninguno).
+  // id del renglón cuyo selector de ícono está abierto (null = ninguno), y el
+  // nombre del Tipo AL QUE se le está eligiendo ícono (puede venir del texto
+  // escrito en el campo -estrellita- o de una entrada del catálogo -dropdown-).
   let iconoPickerFor = $state<number | null>(null);
+  let iconoPickerObjetivo = $state<string | null>(null);
   let guardandoTipoNuevo = $state<string | null>(null); // valor en vuelo, evita doble-clic
   async function elegirIconoTipo(valor: string, icono: string | null) {
     const nombre = valor.trim();
@@ -237,7 +241,7 @@
       if (result.type === 'success') {
         const existente = buscarPreset(nombre);
         if (existente) {
-          if (icono) existente.icono = icono;
+          existente.icono = icono; // puede ser null (quitar el ícono)
         } else {
           tiposPresetList.push({ nombre, icono });
           tiposPresetList.sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -248,6 +252,7 @@
     } finally {
       guardandoTipoNuevo = null;
       iconoPickerFor = null;
+      iconoPickerObjetivo = null;
     }
   }
 
@@ -921,6 +926,7 @@
                   onmousedown={(e) => e.preventDefault()}
                   onclick={() => {
                     openTipoFor = null;
+                    iconoPickerObjetivo = g.tipo.trim();
                     iconoPickerFor = iconoPickerFor === g.id ? null : g.id;
                   }}
                   disabled={guardandoTipoNuevo === g.tipo.trim()}
@@ -986,6 +992,20 @@
                           type="button"
                           class="opt-rename"
                           onmousedown={(e) => e.preventDefault()}
+                          onclick={() => {
+                            openTipoFor = null;
+                            iconoPickerObjetivo = t.nombre;
+                            iconoPickerFor = g.id;
+                          }}
+                          aria-label="{Icono ? 'Cambiar' : 'Elegir'} ícono de '{t.nombre}'"
+                          title="{Icono ? 'Cambiar' : 'Elegir'} ícono"
+                        >
+                          <Palette size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          class="opt-rename"
+                          onmousedown={(e) => e.preventDefault()}
                           onclick={() => iniciarRenombreTipo(t.nombre)}
                           aria-label="Renombrar '{t.nombre}'"
                           title="Renombrar (cambia todos los gastos que ya usan este tipo)"
@@ -1008,10 +1028,21 @@
                 </ul>
               {/if}
               {#if iconoPickerFor === g.id}
+                {@const objetivo = iconoPickerObjetivo ?? g.tipo}
                 <div class="icono-picker">
                   <div class="icono-picker-head">
-                    <span>Ícono para "{g.tipo.trim()}"</span>
-                    <button type="button" class="notas-close" onclick={() => (iconoPickerFor = null)} aria-label="Cerrar selector de ícono">×</button>
+                    <span>Ícono para "{objetivo.trim()}"</span>
+                    <button
+                      type="button"
+                      class="notas-close"
+                      onclick={() => {
+                        iconoPickerFor = null;
+                        iconoPickerObjetivo = null;
+                      }}
+                      aria-label="Cerrar selector de ícono"
+                    >
+                      ×
+                    </button>
                   </div>
                   <div class="icono-grid">
                     {#each ICONOS_DISPONIBLES as opt (opt.key)}
@@ -1021,7 +1052,7 @@
                         class="icono-opt"
                         title={opt.label}
                         onmousedown={(e) => e.preventDefault()}
-                        onclick={() => elegirIconoTipo(g.tipo, opt.key)}
+                        onclick={() => elegirIconoTipo(objetivo, opt.key)}
                       >
                         <OptIcono size={16} />
                       </button>
@@ -1031,7 +1062,7 @@
                     type="button"
                     class="icono-skip"
                     onmousedown={(e) => e.preventDefault()}
-                    onclick={() => elegirIconoTipo(g.tipo, null)}
+                    onclick={() => elegirIconoTipo(objetivo, null)}
                   >
                     Sin ícono
                   </button>

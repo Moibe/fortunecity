@@ -129,7 +129,8 @@ export const actions: Actions = {
 		const existentes = await db.query.tiposPreset.findMany();
 		const existente = existentes.find((t) => t.nombre.toLowerCase() === nombre.toLowerCase());
 		if (existente) {
-			if (icono) db.update(tiposPreset).set({ icono }).where(eq(tiposPreset.id, existente.id)).run();
+			// Siempre actualiza (incluyendo a null, para poder quitar un ícono ya asignado).
+			db.update(tiposPreset).set({ icono }).where(eq(tiposPreset.id, existente.id)).run();
 		} else {
 			db.insert(tiposPreset).values({ nombre, icono }).run();
 		}
