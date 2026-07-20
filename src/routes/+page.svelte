@@ -2465,4 +2465,146 @@
     min-width: 2.5em;
     text-align: right;
   }
+
+  /* ── Móvil (≤680px): la tabla de una línea no cabe; cada renglón se vuelve
+     una tarjetita de 2-3 líneas y los encabezados, chips de orden. ───────── */
+  @media (max-width: 680px) {
+    .capture,
+    .chart {
+      padding: 1rem 0.8rem;
+    }
+    .top-row {
+      flex-wrap: wrap;
+    }
+    .quincena-inputs {
+      flex-wrap: wrap;
+    }
+
+    /* iOS hace zoom automático al enfocar inputs con fuente <16px: todos los
+       campos de captura suben a 16px en móvil para evitarlo. */
+    .g-nombre,
+    .g-tipo,
+    .g-fecha,
+    .entrada-fecha,
+    .entrada-nombre-input,
+    .notas-panel textarea,
+    .opt-rename-input,
+    .q-select,
+    .q-anio {
+      font-size: 16px;
+    }
+
+    /* Encabezados: de grid alineado a columnas → chips de ordenamiento. */
+    .gastos-head,
+    .entradas-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem 1rem;
+      padding: 0 0.1rem 0.5rem;
+    }
+    .h-notas,
+    .entradas-head > span:first-child {
+      display: none;
+    }
+
+    /* Renglón de gasto: 3 líneas.
+       1) handle · color · nombre · notas · pagado · quitar
+       2) tipo (ancho completo → su dropdown también)
+       3) fecha · monto */
+    .gasto-row {
+      grid-template-columns: 18px 16px minmax(0, 1fr) 34px 30px 26px;
+      grid-template-areas:
+        'handle swatch nombre notas pagado del'
+        'tipo   tipo   tipo   tipo  tipo   tipo'
+        'fecha  fecha  fecha  monto monto  monto';
+      gap: 0.35rem 0.4rem;
+      padding: 0.55rem 0.1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 0;
+    }
+    .gasto-row:last-of-type {
+      border-bottom: none;
+    }
+    .gasto-row .drag-handle {
+      grid-area: handle;
+    }
+    .gasto-row .swatch {
+      grid-area: swatch;
+    }
+    .g-nombre {
+      grid-area: nombre;
+      min-width: 0;
+    }
+    .tipo-wrap {
+      grid-area: tipo;
+    }
+    .g-fecha {
+      grid-area: fecha;
+    }
+    .g-monto {
+      grid-area: monto;
+      min-width: 0;
+      padding: 0.35rem 0.45rem;
+    }
+    .g-monto input {
+      min-width: 0;
+      width: 100%;
+    }
+    .notas-wrap {
+      grid-area: notas;
+      justify-self: center;
+    }
+    .pagado-toggle {
+      grid-area: pagado;
+      justify-self: center;
+    }
+    .gasto-row .del {
+      grid-area: del;
+      justify-self: center;
+    }
+    /* El panel de notas cuelga de un botón pegado al borde derecho: se acota
+       para no salirse de pantalla por la izquierda. */
+    .notas-panel {
+      width: min(250px, 72vw);
+    }
+
+    /* Renglón de entrada: 2 líneas (marker · nombre · quitar / fecha · monto). */
+    .entrada-row {
+      grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) 26px;
+      grid-template-areas:
+        'marker nombre nombre del'
+        '.      fecha  monto  monto';
+      gap: 0.35rem 0.4rem;
+      padding: 0.45rem 0.1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 0;
+    }
+    .entrada-row:last-of-type {
+      border-bottom: none;
+    }
+    .entrada-marker {
+      grid-area: marker;
+    }
+    .entrada-nombre-cell,
+    .entrada-row > .entrada-row-label {
+      grid-area: nombre;
+      min-width: 0;
+    }
+    .entrada-fecha {
+      grid-area: fecha;
+    }
+    .entrada-monto-cell {
+      grid-area: monto;
+      min-width: 0;
+    }
+    .entrada-monto-cell input {
+      min-width: 0;
+      width: 100%;
+    }
+    .entrada-row .del {
+      grid-area: del;
+      justify-self: center;
+    }
+  }
 </style>
