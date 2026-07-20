@@ -664,15 +664,15 @@
   });
 
   // ── Reordenar Gastos arrastrando (además del orden por columna) ─────────────
+  // Arrastre 100% manual con Pointer Events (no drag-and-drop nativo del
+  // navegador): así el "fantasma" que sigue al cursor lo dibujamos nosotros
+  // -con su color y todo- en vez de depender del preview nativo, que varía
+  // entre navegadores y no siempre incluye los hijos del elemento arrastrado.
   let dragGastoId = $state<number | null>(null);
   let dragOverGastoId = $state<number | null>(null);
+  let dragPointer = $state<{ x: number; y: number } | null>(null);
 
-  function soltarGasto(targetId: number) {
-    const draggedId = dragGastoId;
-    dragGastoId = null;
-    dragOverGastoId = null;
-    if (draggedId === null || draggedId === targetId) return;
-
+  function soltarGasto(draggedId: number, targetId: number) {
     const orden = gastosOrdenados;
     const fromIdx = orden.findIndex((x) => x.id === draggedId);
     const toIdx = orden.findIndex((x) => x.id === targetId);
@@ -684,6 +684,33 @@
 
     gastos = nuevo;
     gastoSortCol = null; // el arrastre manual toma el control del orden
+  }
+
+  function iniciarArrastreGasto(e: PointerEvent, id: number) {
+    e.preventDefault();
+    dragGastoId = id;
+    dragPointer = { x: e.clientX, y: e.clientY };
+
+    function onMove(ev: PointerEvent) {
+      dragPointer = { x: ev.clientX, y: ev.clientY };
+      const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+      const fila = el?.closest('.gasto-row') as HTMLElement | null;
+      const idAttr = fila?.dataset.gastoId;
+      dragOverGastoId = idAttr ? Number(idAttr) : null;
+    }
+    function onEnd() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
+      const targetId = dragOverGastoId;
+      dragGastoId = null;
+      dragOverGastoId = null;
+      dragPointer = null;
+      if (targetId !== null && targetId !== id) soltarGasto(id, targetId);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
   }
 
   function agregar() {
@@ -925,37 +952,15 @@
             class:active={hovered === g.id}
             class:dragging={dragGastoId === g.id}
             class:drag-over={dragOverGastoId === g.id && dragGastoId !== null && dragGastoId !== g.id}
+            data-gasto-id={g.id}
             onmouseenter={() => (hovered = g.id)}
             onmouseleave={() => (hovered = null)}
-            ondragover={(e) => {
-              e.preventDefault();
-              dragOverGastoId = g.id;
-            }}
-            ondragleave={() => {
-              if (dragOverGastoId === g.id) dragOverGastoId = null;
-            }}
-            ondrop={(e) => {
-              e.preventDefault();
-              soltarGasto(g.id);
-            }}
             role="listitem"
           >
             <button
               type="button"
               class="drag-handle"
-              draggable="true"
-              ondragstart={(e) => {
-                dragGastoId = g.id;
-                const fila = (e.currentTarget as HTMLElement).closest('.gasto-row') as HTMLElement | null;
-                if (fila && e.dataTransfer) {
-                  e.dataTransfer.effectAllowed = 'move';
-                  e.dataTransfer.setDragImage(fila, 12, fila.offsetHeight / 2);
-                }
-              }}
-              ondragend={() => {
-                dragGastoId = null;
-                dragOverGastoId = null;
-              }}
+              onpointerdown={(e) => iniciarArrastreGasto(e, g.id)}
               aria-label="Arrastrar para reordenar"
               title="Arrastrar para reordenar"
             >
@@ -1192,6 +1197,16 @@
             <button class="del" type="button" onclick={() => quitar(g.id)} aria-label="Quitar proyecto">×</button>
           </div>
         {/each}
+
+        {#if dragGastoId !== null && dragPointer}
+          {@const arrastrado = gastos.find((x) => x.id === dragGastoId)}
+          {#if arrastrado}
+            <div class="drag-ghost" style="left: {dragPointer.x}px; top: {dragPointer.y}px;">
+              <span class="swatch" style="background: {colorPorGastoId.get(arrastrado.id) ?? 'rgba(255,255,255,0.3)'}"></span>
+              <span>{arrastrado.nombre.trim() || 'Sin nombre'}</span>
+            </div>
+          {/if}
+        {/if}
       </div>
 
       <div class="totales">
@@ -1741,12 +1756,35 @@
     padding: 0;
     color: rgba(255, 255, 255, 0.3);
     cursor: grab;
+    touch-action: none;
   }
   .drag-handle:hover {
     color: rgba(255, 255, 255, 0.7);
   }
   .drag-handle:active {
     cursor: grabbing;
+  }
+  .drag-ghost {
+    position: fixed;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    background: rgba(15, 46, 33, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translate(-16px, -50%);
+  }
+  .drag-ghost .swatch {
+    width: 12px;
+    height: 12px;
   }
   .swatch {
     width: 14px;
