@@ -1503,7 +1503,7 @@
     grid-template-columns: 24px 1fr 140px 130px 28px;
     gap: 0.5rem;
     align-items: center;
-    padding: 0.35rem 0.2rem;
+    padding: 0.22rem 0.2rem;
     border-radius: 8px;
   }
   .entrada-marker {
