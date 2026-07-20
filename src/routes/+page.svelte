@@ -567,6 +567,18 @@
 
   type Seg = { id: number | null; nombre: string; monto: number; color: string; len: number; offset: number };
 
+  // Color por gasto ESTABLE por id de creación (no por posición en el arreglo),
+  // para que ni ordenar columnas ni arrastrar renglones le cambie el color a
+  // nadie — la dona y el puntito de la tabla siempre lo leen de aquí.
+  const colorPorGastoId = $derived.by((): Map<number, string> => {
+    const map = new Map<number, string>();
+    [...gastos]
+      .filter((g) => (Number(g.monto) || 0) > 0)
+      .sort((a, b) => a.id - b.id)
+      .forEach((g, i) => map.set(g.id, PALETTE[i % PALETTE.length]));
+    return map;
+  });
+
   const segments = $derived.by((): Seg[] => {
     const items = gastos.filter((g) => (Number(g.monto) || 0) > 0);
     const segs: Seg[] = [];
@@ -577,7 +589,7 @@
         id: g.id,
         nombre: g.nombre.trim() || `Proyecto ${i + 1}`,
         monto: Number(g.monto) || 0,
-        color: PALETTE[i % PALETTE.length],
+        color: colorPorGastoId.get(g.id) ?? PALETTE[i % PALETTE.length],
         len: frac * C,
         offset: acc * C
       });
@@ -594,16 +606,6 @@
       });
     }
     return segs;
-  });
-
-  // Color por gasto ESTABLE (mismo orden/índice que usa la dona), para que el
-  // punto de color de la tabla no cambie solo porque ordenaste la tabla distinto.
-  const colorPorGastoId = $derived.by((): Map<number, string> => {
-    const map = new Map<number, string>();
-    gastos
-      .filter((g) => (Number(g.monto) || 0) > 0)
-      .forEach((g, i) => map.set(g.id, PALETTE[i % PALETTE.length]));
-    return map;
   });
 
   // ── Orden de la tabla de Gastos por columna (clic en el encabezado) ─────────
