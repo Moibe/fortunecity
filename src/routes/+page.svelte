@@ -125,7 +125,8 @@
     Gift,
     Shirt,
     Fuel,
-    Music
+    Music,
+    GripVertical
   } from '@lucide/svelte';
   import { deserialize } from '$app/forms';
   import { untrack } from 'svelte';
@@ -660,6 +661,29 @@
     return rows.sort((a, b) => b.monto - a.monto);
   });
 
+  // ── Reordenar Gastos arrastrando (además del orden por columna) ─────────────
+  let dragGastoId = $state<number | null>(null);
+  let dragOverGastoId = $state<number | null>(null);
+
+  function soltarGasto(targetId: number) {
+    const draggedId = dragGastoId;
+    dragGastoId = null;
+    dragOverGastoId = null;
+    if (draggedId === null || draggedId === targetId) return;
+
+    const orden = gastosOrdenados;
+    const fromIdx = orden.findIndex((x) => x.id === draggedId);
+    const toIdx = orden.findIndex((x) => x.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const nuevo = [...orden];
+    const [movido] = nuevo.splice(fromIdx, 1);
+    nuevo.splice(toIdx, 0, movido);
+
+    gastos = nuevo;
+    gastoSortCol = null; // el arrastre manual toma el control del orden
+  }
+
   function agregar() {
     gastos.push({ id: nextId++, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null });
   }
@@ -897,10 +921,37 @@
           <div
             class="gasto-row"
             class:active={hovered === g.id}
+            class:dragging={dragGastoId === g.id}
+            class:drag-over={dragOverGastoId === g.id && dragGastoId !== null && dragGastoId !== g.id}
             onmouseenter={() => (hovered = g.id)}
             onmouseleave={() => (hovered = null)}
+            ondragover={(e) => {
+              e.preventDefault();
+              dragOverGastoId = g.id;
+            }}
+            ondragleave={() => {
+              if (dragOverGastoId === g.id) dragOverGastoId = null;
+            }}
+            ondrop={(e) => {
+              e.preventDefault();
+              soltarGasto(g.id);
+            }}
             role="listitem"
           >
+            <button
+              type="button"
+              class="drag-handle"
+              draggable="true"
+              ondragstart={() => (dragGastoId = g.id)}
+              ondragend={() => {
+                dragGastoId = null;
+                dragOverGastoId = null;
+              }}
+              aria-label="Arrastrar para reordenar"
+              title="Arrastrar para reordenar"
+            >
+              <GripVertical size={14} />
+            </button>
             <span class="swatch" style="background: {colorPorGastoId.get(g.id) ?? 'rgba(255,255,255,0.3)'}"></span>
             <input class="g-nombre" type="text" bind:value={g.nombre} placeholder="¿En qué lo gastas?" />
             <div class="tipo-wrap">
@@ -1604,7 +1655,7 @@
   }
   .gastos-head {
     display: grid;
-    grid-template-columns: 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 28px;
+    grid-template-columns: 18px 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 28px;
     gap: 0.5rem;
     padding: 0 0.2rem 0.4rem;
     font-size: 0.72rem;
@@ -1636,26 +1687,26 @@
     color: #86efac;
   }
   .h-proyecto {
-    grid-column: 2;
-  }
-  .h-tipo {
     grid-column: 3;
   }
-  .h-fecha {
+  .h-tipo {
     grid-column: 4;
   }
-  .h-monto {
+  .h-fecha {
     grid-column: 5;
   }
-  .h-notas {
+  .h-monto {
     grid-column: 6;
   }
-  .h-pagado {
+  .h-notas {
     grid-column: 7;
+  }
+  .h-pagado {
+    grid-column: 8;
   }
   .gasto-row {
     display: grid;
-    grid-template-columns: 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 28px;
+    grid-template-columns: 18px 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 28px;
     gap: 0.5rem;
     align-items: center;
     padding: 0.22rem 0.2rem;
@@ -1664,6 +1715,29 @@
   }
   .gasto-row.active {
     background: rgba(255, 255, 255, 0.06);
+  }
+  .gasto-row.dragging {
+    opacity: 0.4;
+  }
+  .gasto-row.drag-over {
+    background: rgba(134, 239, 172, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(134, 239, 172, 0.35);
+  }
+  .drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: grab;
+  }
+  .drag-handle:hover {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .drag-handle:active {
+    cursor: grabbing;
   }
   .swatch {
     width: 14px;
