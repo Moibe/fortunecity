@@ -779,6 +779,9 @@
             </div>
           {/if}
         </div>
+        <span class="save-status" class:dirty>
+          {guardando ? 'Guardando…' : dirty ? 'Sin guardar…' : 'Guardado ✓'}
+        </span>
       </div>
 
       {#snippet nombreEntrada(entrada: EntradaItem, placeholderText: string, labelClass: string)}
@@ -1325,10 +1328,6 @@
           </div>
         {/if}
       </div>
-
-      <span class="save-status" class:dirty>
-        {guardando ? 'Guardando…' : dirty ? 'Sin guardar…' : 'Guardado ✓'}
-      </span>
     </section>
   </div>
 </div>
@@ -1343,7 +1342,7 @@
   .save-status {
     display: block;
     width: fit-content;
-    margin: 1.25rem 0 0 auto;
+    flex-shrink: 0;
     padding: 0.4rem 0.9rem;
     font-size: 0.85rem;
     font-weight: 600;
@@ -1383,8 +1382,8 @@
   /* ── Fila superior: Quincena ──────────────────────────────────────────────── */
   .top-row {
     display: flex;
-    justify-content: flex-start;
-    align-items: flex-start;
+    justify-content: space-between;
+    align-items: center;
     gap: 1rem;
     margin-bottom: 1.25rem;
   }
