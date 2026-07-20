@@ -8,7 +8,23 @@
   import Sidebar from '$lib/Sidebar.svelte';
 
   let { children }: { children: Snippet } = $props();
-  let collapsed = $state(false);
+  let collapsed = $state(false); // repliegue de escritorio (empuja el contenido)
+  let mobileOpen = $state(false); // cajón abierto en móvil (superpuesto). Arranca cerrado.
+  let isMobile = $state(false);
+
+  // Detecta móvil para ramificar el comportamiento de la hamburguesa. Al cruzar
+  // el breakpoint cerramos el cajón y reseteamos el repliegue de escritorio.
+  $effect(() => {
+    const mq = window.matchMedia('(max-width: 680px)');
+    const apply = () => {
+      isMobile = mq.matches;
+      mobileOpen = false;
+      if (mq.matches) collapsed = false;
+    };
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  });
 
   // View Transitions cuando el browser las soporta para animar el repliegue.
   function withTransition(fn: () => void) {
@@ -23,14 +39,26 @@
       collapsed = !collapsed;
     });
   }
+  // La hamburguesa del TopNav: en móvil abre/cierra el cajón; en escritorio
+  // repliega/expande la barra.
+  function toggleSidebar() {
+    if (isMobile) {
+      mobileOpen = !mobileOpen;
+    } else {
+      toggleCollapsed();
+    }
+  }
+  function closeMobile() {
+    mobileOpen = false;
+  }
 </script>
 
 <svelte:head>
   <link rel="icon" href={favicon} />
 </svelte:head>
 
-<TopNav />
-<Sidebar {collapsed} {toggleCollapsed} />
+<TopNav onMenu={toggleSidebar} />
+<Sidebar {collapsed} {mobileOpen} {isMobile} {toggleCollapsed} {closeMobile} />
 <main class={collapsed ? 'collapsed' : ''}>
   <div class="work-scroll">
     {@render children()}
@@ -98,6 +126,16 @@
   }
   main.collapsed {
     left: 2rem;
+  }
+
+  /* En móvil el sidebar es un cajón superpuesto: el contenido siempre va a lo
+     ancho, sin importar si el cajón está abierto o cerrado. */
+  @media (max-width: 680px) {
+    main,
+    main.collapsed {
+      left: 1rem;
+      right: 1rem;
+    }
   }
 
   .work-scroll {
