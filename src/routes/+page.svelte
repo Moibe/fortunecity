@@ -899,15 +899,17 @@
           <span class="entrada-marker" aria-hidden="true">💵</span>
           <span class="entrada-row-label">Remanente Anterior</span>
           <span></span>
-          <div class="entrada-monto-cell">
-            <span class="cur">$</span>
-            <input
-              type="text"
-              inputmode="decimal"
-              value={formatearMiles(String(remanenteAnterior))}
-              use:miles={{ get: () => remanenteAnterior, set: (v) => (remanenteAnterior = v) }}
-              placeholder="0.00"
-            />
+          <div class="fecha-monto">
+            <div class="entrada-monto-cell">
+              <span class="cur">$</span>
+              <input
+                type="text"
+                inputmode="decimal"
+                value={formatearMiles(String(remanenteAnterior))}
+                use:miles={{ get: () => remanenteAnterior, set: (v) => (remanenteAnterior = v) }}
+                placeholder="0.00"
+              />
+            </div>
           </div>
         </div>
         {#each entradasOrdenadas as entrada (entrada.id)}
@@ -916,16 +918,18 @@
             <div class="entrada-nombre-cell">
               {@render nombreEntrada(entrada, `Entrada ${entradaNumeroPorId.get(entrada.id)}`, 'entrada-row-label')}
             </div>
-            <input class="entrada-fecha" type="date" bind:value={entrada.fecha} />
-            <div class="entrada-monto-cell">
-              <span class="cur">$</span>
-              <input
-                type="text"
-                inputmode="decimal"
-                value={formatearMiles(String(entrada.monto))}
-                use:miles={{ get: () => entrada.monto, set: (v) => (entrada.monto = v) }}
-                placeholder="0.00"
-              />
+            <div class="fecha-monto">
+              <input class="entrada-fecha" type="date" bind:value={entrada.fecha} />
+              <div class="entrada-monto-cell">
+                <span class="cur">$</span>
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  value={formatearMiles(String(entrada.monto))}
+                  use:miles={{ get: () => entrada.monto, set: (v) => (entrada.monto = v) }}
+                  placeholder="0.00"
+                />
+              </div>
             </div>
             <button type="button" class="del" onclick={() => quitarEntrada(entrada.id)} aria-label="Quitar entrada">×</button>
           </div>
@@ -1165,16 +1169,18 @@
                 </div>
               {/if}
             </div>
-            <input class="g-fecha" type="date" bind:value={g.fecha} />
-            <div class="g-monto">
-              <span class="cur">$</span>
-              <input
-                type="text"
-                inputmode="decimal"
-                value={formatearMiles(String(g.monto))}
-                use:miles={{ get: () => g.monto, set: (v) => (g.monto = v) }}
-                placeholder="0.00"
-              />
+            <div class="fecha-monto">
+              <input class="g-fecha" type="date" bind:value={g.fecha} />
+              <div class="g-monto">
+                <span class="cur">$</span>
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  value={formatearMiles(String(g.monto))}
+                  use:miles={{ get: () => g.monto, set: (v) => (g.monto = v) }}
+                  placeholder="0.00"
+                />
+              </div>
             </div>
             <div class="notas-wrap">
               <button
@@ -1879,6 +1885,14 @@
     box-sizing: border-box;
   }
 
+  /* Envuelve fecha+monto (gasto y entrada). En escritorio es invisible para el
+     grid (los hijos se auto-colocan igual que si no existiera el wrapper); en
+     móvil se vuelve flexbox para que ambos campos midan lo que su contenido
+     necesita, sin estirarse a ocupar toda la columna. */
+  .fecha-monto {
+    display: contents;
+  }
+
   /* ── Combobox de Tipo (propio, no <datalist> nativo) ────────────────────── */
   .tipo-wrap {
     position: relative;
@@ -2511,13 +2525,13 @@
     /* Renglón de gasto: 3 líneas.
        1) handle · color · nombre · notas · pagado · quitar
        2) tipo (ancho completo → su dropdown también)
-       3) fecha · monto */
+       3) fecha + monto (juntos, compactos, sin estirarse) */
     .gasto-row {
       grid-template-columns: 18px 16px minmax(0, 1fr) 34px 30px 26px;
       grid-template-areas:
         'handle swatch nombre notas pagado del'
         'tipo   tipo   tipo   tipo  tipo   tipo'
-        'fecha  fecha  fecha  monto monto  monto';
+        'fechamonto fechamonto fechamonto fechamonto fechamonto fechamonto';
       gap: 0.35rem 0.4rem;
       padding: 0.55rem 0.1rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.07);
@@ -2539,18 +2553,6 @@
     .tipo-wrap {
       grid-area: tipo;
     }
-    .g-fecha {
-      grid-area: fecha;
-    }
-    .g-monto {
-      grid-area: monto;
-      min-width: 0;
-      padding: 0.35rem 0.45rem;
-    }
-    .g-monto input {
-      min-width: 0;
-      width: 100%;
-    }
     .notas-wrap {
       grid-area: notas;
       justify-self: center;
@@ -2569,12 +2571,12 @@
       width: min(250px, 72vw);
     }
 
-    /* Renglón de entrada: 2 líneas (marker · nombre · quitar / fecha · monto). */
+    /* Renglón de entrada: 2 líneas (marker · nombre · quitar / fecha + monto). */
     .entrada-row {
-      grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) 26px;
+      grid-template-columns: 24px minmax(0, 1fr) 26px;
       grid-template-areas:
-        'marker nombre nombre del'
-        '.      fecha  monto  monto';
+        'marker     nombre     del'
+        'fechamonto fechamonto fechamonto';
       gap: 0.35rem 0.4rem;
       padding: 0.45rem 0.1rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.07);
@@ -2591,20 +2593,35 @@
       grid-area: nombre;
       min-width: 0;
     }
-    .entrada-fecha {
-      grid-area: fecha;
-    }
-    .entrada-monto-cell {
-      grid-area: monto;
-      min-width: 0;
-    }
-    .entrada-monto-cell input {
-      min-width: 0;
-      width: 100%;
-    }
     .entrada-row .del {
       grid-area: del;
       justify-self: center;
+    }
+
+    /* El wrapper fecha+monto: en móvil se vuelve el grid item real (área
+       compartida por gasto y entrada) y un flex row por dentro. Al no tener
+       flex-grow, cada campo mide solo lo que su contenido necesita -el resto
+       del área queda en blanco tras ellos, en vez de estirar cada campo-. */
+    .fecha-monto {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      grid-area: fechamonto;
+      min-width: 0;
+    }
+    .fecha-monto .g-fecha,
+    .fecha-monto .entrada-fecha {
+      width: auto;
+      flex-shrink: 0;
+    }
+    .fecha-monto .g-monto,
+    .fecha-monto .entrada-monto-cell {
+      flex-shrink: 0;
+      padding: 0.35rem 0.45rem;
+    }
+    .fecha-monto .g-monto input,
+    .fecha-monto .entrada-monto-cell input {
+      width: 88px;
     }
   }
 </style>
