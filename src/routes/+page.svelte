@@ -192,6 +192,16 @@
     return fechaAInput(new Date());
   }
 
+  // Para ordenar por fecha: las vacías (sin fecha capturada) siempre se van al
+  // final, sin importar si el orden es ascendente o descendente. Sin esto,
+  // '' se compara como "la fecha más chica posible" y se amontonan al inicio.
+  function compararFechaOrden(a: string, b: string, dir: number): number {
+    if (!a && !b) return 0;
+    if (!a) return 1;
+    if (!b) return -1;
+    return a.localeCompare(b) * dir;
+  }
+
   let { data }: { data: PageData } = $props();
 
   // Catálogo de Tipos (dropdown propio, con el estilo del sitio): el campo
@@ -466,6 +476,7 @@
     const col = entradaSortCol;
     return [...entradas].sort((a, b) => {
       if (col === 'monto') return ((Number(a.monto) || 0) - (Number(b.monto) || 0)) * dir;
+      if (col === 'fecha') return compararFechaOrden(a.fecha, b.fecha, dir);
       return a[col].localeCompare(b[col]) * dir;
     });
   });
@@ -627,7 +638,8 @@
     return [...gastos].sort((a, b) => {
       if (col === 'monto') return ((Number(a.monto) || 0) - (Number(b.monto) || 0)) * dir;
       if (col === 'pagado') return ((a.pagado ? 1 : 0) - (b.pagado ? 1 : 0)) * dir;
-      // nombre / tipo / fecha son texto; fecha en "YYYY-MM-DD" ordena bien como texto.
+      if (col === 'fecha') return compararFechaOrden(a.fecha, b.fecha, dir);
+      // nombre / tipo son texto.
       return a[col].localeCompare(b[col]) * dir;
     });
   });
