@@ -942,7 +942,14 @@
               type="button"
               class="drag-handle"
               draggable="true"
-              ondragstart={() => (dragGastoId = g.id)}
+              ondragstart={(e) => {
+                dragGastoId = g.id;
+                const fila = (e.currentTarget as HTMLElement).closest('.gasto-row') as HTMLElement | null;
+                if (fila && e.dataTransfer) {
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setDragImage(fila, 12, fila.offsetHeight / 2);
+                }
+              }}
               ondragend={() => {
                 dragGastoId = null;
                 dragOverGastoId = null;
