@@ -1343,7 +1343,7 @@
   .save-status {
     display: block;
     width: fit-content;
-    margin: 1.25rem auto 0;
+    margin: 1.25rem 0 0 auto;
     padding: 0.4rem 0.9rem;
     font-size: 0.85rem;
     font-weight: 600;
@@ -1383,7 +1383,7 @@
   /* ── Fila superior: Quincena ──────────────────────────────────────────────── */
   .top-row {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     align-items: flex-start;
     gap: 1rem;
     margin-bottom: 1.25rem;
