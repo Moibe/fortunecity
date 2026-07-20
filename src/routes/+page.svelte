@@ -923,6 +923,16 @@
         <button class="add" type="button" onclick={agregar}>+ Agregar proyecto</button>
 
         <div class="gastos-head">
+          <button
+            type="button"
+            class="h-manual"
+            class:active={gastoSortCol === null}
+            onclick={() => (gastoSortCol = null)}
+            aria-label="Orden manual (el que armaste arrastrando)"
+            title="Orden manual (el que armaste arrastrando)"
+          >
+            <GripVertical size={12} />
+          </button>
           <button type="button" class="h-proyecto sortable" onclick={() => ordenarGastosPor('nombre')}>
             Proyecto
             {#if gastoSortCol === 'nombre'}<span class="sort-arrow">{gastoSortAsc ? '▲' : '▼'}</span>{/if}
@@ -1708,6 +1718,24 @@
   }
   .sort-arrow {
     font-size: 0.7em;
+    color: #86efac;
+  }
+  .h-manual {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  .h-manual:hover {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .h-manual.active {
     color: #86efac;
   }
   .h-proyecto {
