@@ -1664,7 +1664,7 @@
     grid-template-columns: 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 28px;
     gap: 0.5rem;
     align-items: center;
-    padding: 0.35rem 0.2rem;
+    padding: 0.22rem 0.2rem;
     border-radius: 8px;
     transition: background 0.15s ease;
   }
