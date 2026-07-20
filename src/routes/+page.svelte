@@ -120,7 +120,12 @@
     GraduationCap,
     Dumbbell,
     PawPrint,
-    Palette
+    Palette,
+    Wine,
+    Gift,
+    Shirt,
+    Fuel,
+    Music
   } from '@lucide/svelte';
   import { deserialize } from '$app/forms';
   import { untrack } from 'svelte';
@@ -148,7 +153,12 @@
     { key: 'plane', Icono: Plane, label: 'Viajes' },
     { key: 'graduation-cap', Icono: GraduationCap, label: 'Educación' },
     { key: 'dumbbell', Icono: Dumbbell, label: 'Ejercicio' },
-    { key: 'paw-print', Icono: PawPrint, label: 'Mascotas' }
+    { key: 'paw-print', Icono: PawPrint, label: 'Mascotas' },
+    { key: 'wine', Icono: Wine, label: 'Bares' },
+    { key: 'gift', Icono: Gift, label: 'Regalos' },
+    { key: 'shirt', Icono: Shirt, label: 'Ropa' },
+    { key: 'fuel', Icono: Fuel, label: 'Gasolina' },
+    { key: 'music', Icono: Music, label: 'Música' }
   ];
   const ICONOS_MAP: Record<string, typeof Banknote> = Object.fromEntries(
     ICONOS_DISPONIBLES.map((i) => [i.key, i.Icono])
