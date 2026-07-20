@@ -675,10 +675,6 @@
     <!-- ── Captura ─────────────────────────────────────────────────────── -->
     <section class="capture">
       <div class="top-row">
-        <div class="capture-title">
-          <h1>Distribución</h1>
-          <p class="sub">Anota lo que recibiste y repártelo por proyecto.</p>
-        </div>
         <div class="quincena-field">
           <span class="total-label">Quincena</span>
           {#if editandoQuincena}
@@ -1247,18 +1243,6 @@
     padding: 0.5rem 0.25rem 1rem;
     color: rgba(255, 255, 255, 0.95);
   }
-  .capture-title h1 {
-    margin: 0;
-    font-size: 1.3rem;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    color: rgba(255, 255, 255, 0.98);
-  }
-  .sub {
-    margin: 0.25rem 0 0;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.9rem;
-  }
   .save-status {
     display: block;
     width: fit-content;
@@ -1302,7 +1286,7 @@
   /* ── Fila superior: Quincena ──────────────────────────────────────────────── */
   .top-row {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-start;
     gap: 1rem;
     margin-bottom: 1.25rem;

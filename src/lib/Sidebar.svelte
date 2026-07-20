@@ -53,7 +53,7 @@
     <nav>
       <a href="/" class="nav-item" aria-current={page.url.pathname === '/' ? 'page' : undefined}>
         <span class="nav-ico" aria-hidden="true"></span>
-        <span>Qnc Dist</span>
+        <span>Distribución</span>
       </a>
       <a href="/big-dbt" class="nav-item" aria-current={page.url.pathname === '/big-dbt' ? 'page' : undefined}>
         <span class="nav-ico" aria-hidden="true"></span>
