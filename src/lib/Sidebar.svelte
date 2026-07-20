@@ -55,14 +55,6 @@
         <span class="nav-ico" aria-hidden="true"></span>
         <span>Distribución</span>
       </a>
-      <a href="/big-dbt" class="nav-item" aria-current={page.url.pathname === '/big-dbt' ? 'page' : undefined}>
-        <span class="nav-ico" aria-hidden="true"></span>
-        <span>Big Dbt</span>
-      </a>
-      <a href="/med-dbt" class="nav-item" aria-current={page.url.pathname === '/med-dbt' ? 'page' : undefined}>
-        <span class="nav-ico" aria-hidden="true"></span>
-        <span>Med Dbt</span>
-      </a>
     </nav>
 
     <div class="sidebar-footer">
