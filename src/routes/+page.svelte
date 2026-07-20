@@ -729,7 +729,7 @@
     <section class="capture">
       <div class="top-row">
         <div class="quincena-field">
-          <span class="total-label">Quincena</span>
+          <span class="q-badge" title="Quincena" aria-label="Quincena">Q</span>
           {#if editandoQuincena}
             <div class="quincena-inputs">
               <select class="q-select" bind:value={mes} aria-label="Mes">
@@ -1380,6 +1380,23 @@
   /* ── Quincena (mes / corte / año) ───────────────────────────────────────── */
   .quincena-field {
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .q-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: rgba(134, 239, 172, 0.16);
+    border: 1px solid rgba(134, 239, 172, 0.35);
+    color: #86efac;
+    font-size: 0.75rem;
+    font-weight: 700;
   }
   .quincena-inputs {
     display: flex;
@@ -1435,16 +1452,6 @@
     color: #fff;
     background: rgba(134, 239, 172, 0.16);
     border-color: rgba(134, 239, 172, 0.4);
-  }
-
-  /* ── Total ───────────────────────────────────────────────────────────── */
-  .total-label {
-    display: block;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 0.4rem;
   }
 
   /* ── Entradas: listado parejo, mismo lenguaje visual que Gastos ──────────── */
