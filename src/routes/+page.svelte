@@ -443,18 +443,21 @@
   let nextEntradaId = Math.max(0, ...inicial.entradas.map((e) => e.id)) + 1;
   const total = $derived(entradas.reduce((s, e) => s + (Number(e.monto) || 0), 0));
   function agregarEntrada() {
-    entradas.push({ id: nextEntradaId++, nombre: '', monto: 0, fecha: hoyInput() });
+    // unshift (no push): la nueva entrada aparece arriba, visible sin scroll.
+    entradas.unshift({ id: nextEntradaId++, nombre: '', monto: 0, fecha: hoyInput() });
   }
   function quitarEntrada(id: number) {
     entradas = entradas.filter((e) => e.id !== id);
     if (entradas.length === 0) entradas.push({ id: nextEntradaId++, nombre: '', monto: 0, fecha: hoyInput() });
   }
 
-  // Número "Entrada N" ESTABLE (orden en que se agregaron), para que no cambie
-  // solo porque ordenaste la tabla distinto.
+  // Número "Entrada N" ESTABLE por id de creación (no por posición), para que
+  // no cambie ni al ordenar la tabla ni al agregar una entrada nueva arriba.
   const entradaNumeroPorId = $derived.by((): Map<number, number> => {
     const map = new Map<number, number>();
-    entradas.forEach((e, i) => map.set(e.id, i + 1));
+    [...entradas]
+      .sort((a, b) => a.id - b.id)
+      .forEach((e, i) => map.set(e.id, i + 1));
     return map;
   });
 
@@ -726,7 +729,8 @@
   }
 
   function agregar() {
-    gastos.push({ id: nextId++, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null });
+    // unshift (no push): el nuevo proyecto aparece arriba, visible sin scroll.
+    gastos.unshift({ id: nextId++, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null });
   }
   function quitar(id: number) {
     gastos = gastos.filter((g) => g.id !== id);
