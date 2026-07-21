@@ -44,9 +44,13 @@ type Payload = {
 };
 
 // "YYYY-MM-DD" (de <input type="date">) -> Date, o null si viene vacío/inválido.
+// Se fija a medianoche UTC (no hora local del server) a propósito: son fechas
+// de calendario puras, y el droplet corre en UTC mientras el navegador está en
+// hora de México - si cada quien la interpreta en su propia zona, el día se
+// corre al hacer el viaje ida y vuelta (ver fechaAInput en +page.svelte).
 function parseFecha(v: string | null | undefined): Date | null {
 	if (!v) return null;
-	const d = new Date(`${v}T00:00:00`);
+	const d = new Date(`${v}T00:00:00Z`);
 	return Number.isNaN(d.getTime()) ? null : d;
 }
 

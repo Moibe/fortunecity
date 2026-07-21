@@ -178,18 +178,28 @@
   type TipoPresetItem = { nombre: string; icono: string | null };
   type EntradaItem = { id: number; nombre: string; monto: number; fecha: string };
 
-  // Date | null (lo que carga Drizzle) <-> "YYYY-MM-DD" (lo que usa <input type="date">).
+  // Date (lo que carga Drizzle, guardada como medianoche UTC por parseFecha en
+  // el server) <-> "YYYY-MM-DD" (lo que usa <input type="date">). Se lee en UTC
+  // a propósito: son fechas de calendario puras, sin hora, y leerlas en la hora
+  // LOCAL del navegador las corría un día si el server y el navegador no
+  // comparten zona horaria (el droplet corre en UTC; México no).
   function fechaAInput(d: Date | string | null | undefined): string {
     if (!d) return '';
     const date = d instanceof Date ? d : new Date(d);
     if (Number.isNaN(date.getTime())) return '';
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   }
+  // La fecha de HOY sí es local (el día en el que está el usuario ahora mismo),
+  // a diferencia de fechaAInput (que lee fechas ya guardadas, en UTC).
   function hoyInput(): string {
-    return fechaAInput(new Date());
+    const hoy = new Date();
+    const y = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, '0');
+    const day = String(hoy.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   // Para ordenar por fecha: las vacías (sin fecha capturada) siempre se van al
@@ -426,7 +436,7 @@
       entradas:
         entradasRows.length > 0
           ? entradasRows
-          : [{ id: 1, nombre: '', monto: q?.total ?? 0, fecha: fechaAInput(hoy) }],
+          : [{ id: 1, nombre: '', monto: q?.total ?? 0, fecha: hoyInput() }],
       remanenteAnterior: q?.remanenteAnterior ?? 0,
       anio: q?.anio ?? hoy.getFullYear(),
       mes: q?.mes ?? hoy.getMonth() + 1,
@@ -434,7 +444,7 @@
       gastos:
         rows.length > 0
           ? rows
-          : [{ id: 1, nombre: '', tipo: '', monto: 0, fecha: fechaAInput(hoy), notas: '', pagado: false, deudaId: null }]
+          : [{ id: 1, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null }]
     };
   });
 
