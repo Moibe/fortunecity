@@ -636,6 +636,9 @@
   type GastoSortCol = 'nombre' | 'tipo' | 'fecha' | 'monto' | 'pagado';
   let gastoSortCol = $state<GastoSortCol | null>(null);
   let gastoSortAsc = $state(true);
+  // id del último gasto agregado con "+ Agregar proyecto": se fuerza arriba de
+  // la tabla sin importar el ordenamiento activo (columna o manual).
+  let nuevoGastoId = $state<number | null>(null);
   function ordenarGastosPor(col: GastoSortCol) {
     if (gastoSortCol === col) {
       gastoSortAsc = !gastoSortAsc;
@@ -648,7 +651,13 @@
     if (!gastoSortCol) return gastos;
     const dir = gastoSortAsc ? 1 : -1;
     const col = gastoSortCol;
+    const nuevoId = nuevoGastoId;
     return [...gastos].sort((a, b) => {
+      // El último agregado gana siempre, sin importar la columna de orden.
+      if (nuevoId !== null) {
+        if (a.id === nuevoId && b.id !== nuevoId) return -1;
+        if (b.id === nuevoId && a.id !== nuevoId) return 1;
+      }
       if (col === 'monto') return ((Number(a.monto) || 0) - (Number(b.monto) || 0)) * dir;
       if (col === 'pagado') return ((a.pagado ? 1 : 0) - (b.pagado ? 1 : 0)) * dir;
       if (col === 'fecha') return compararFechaOrden(a.fecha, b.fecha, dir);
@@ -740,12 +749,18 @@
 
   function agregar() {
     // unshift (no push): el nuevo proyecto aparece arriba, visible sin scroll.
-    gastos.unshift({ id: nextId++, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null });
+    const id = nextId++;
+    gastos.unshift({ id, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null });
+    nuevoGastoId = id; // se fuerza arriba de la tabla sin importar el orden activo
   }
   function quitar(id: number) {
     gastos = gastos.filter((g) => g.id !== id);
-    if (gastos.length === 0)
-      gastos.push({ id: nextId++, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null });
+    if (nuevoGastoId === id) nuevoGastoId = null;
+    if (gastos.length === 0) {
+      const nuevoId = nextId++;
+      gastos.push({ id: nuevoId, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null });
+      nuevoGastoId = nuevoId;
+    }
   }
 </script>
 
