@@ -4,21 +4,65 @@ import { eq, sql } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-// Carga la quincena más reciente con sus renglones/entradas, y los catálogos
-// de Tipos y de nombres de Entrada.
-export const load: PageServerLoad = async () => {
-	const quincena = await db.query.quincenas.findFirst({
-		orderBy: (q, { desc }) => [desc(q.id)],
-		with: { renglones: true, entradas: true }
+// Clave numérica ordenable para comparar quincenas cronológicamente (15 antes que 30).
+function claveQuincena(anio: number, mes: number, corte: number): number {
+	return anio * 10000 + mes * 100 + corte;
+}
+
+// Carga la quincena pedida por query params (?anio=&mes=&corte=); si no se pide
+// ninguna (visita normal a "/"), carga la más reciente. También manda el rango
+// de quincenas YA GUARDADAS (primera y última) para que el cliente sepa hasta
+// dónde puede navegar hacia atrás/adelante.
+export const load: PageServerLoad = async ({ url }) => {
+	const anioParam = Number(url.searchParams.get('anio'));
+	const mesParam = Number(url.searchParams.get('mes'));
+	const corteParam = Number(url.searchParams.get('corte'));
+	const tieneObjetivo =
+		Number.isInteger(anioParam) &&
+		anioParam > 0 &&
+		Number.isInteger(mesParam) &&
+		mesParam >= 1 &&
+		mesParam <= 12 &&
+		(corteParam === 15 || corteParam === 30);
+
+	const todas = await db.query.quincenas.findMany({
+		columns: { id: true, anio: true, mes: true, corte: true }
 	});
+	todas.sort((a, b) => claveQuincena(a.anio, a.mes, a.corte) - claveQuincena(b.anio, b.mes, b.corte));
+	const primera = todas[0] ?? null;
+	const ultima = todas[todas.length - 1] ?? null;
+
+	const quincena = tieneObjetivo
+		? await db.query.quincenas.findFirst({
+				where: (q, { and, eq }) => and(eq(q.anio, anioParam), eq(q.mes, mesParam), eq(q.corte, corteParam)),
+				with: { renglones: true, entradas: true }
+			})
+		: ultima
+			? await db.query.quincenas.findFirst({
+					where: (q, { eq }) => eq(q.id, ultima.id),
+					with: { renglones: true, entradas: true }
+				})
+			: undefined;
+
 	const tipos = await db.query.tiposPreset.findMany({
 		orderBy: (t, { asc }) => [asc(t.nombre)]
 	});
 	const nombresEntrada = await db.query.entradasPreset.findMany({
 		orderBy: (e, { asc }) => [asc(e.nombre)]
 	});
+
 	return {
 		quincena: quincena ?? null,
+		// si se pidió una quincena específica y no existe, el cliente arranca en
+		// blanco EN ESA quincena (no en "hoy") - lo necesita para mes/año/corte.
+		objetivo: tieneObjetivo ? { anio: anioParam, mes: mesParam, corte: corteParam } : null,
+		rangoReal:
+			primera && ultima
+				? {
+						primera: { anio: primera.anio, mes: primera.mes, corte: primera.corte },
+						ultima: { anio: ultima.anio, mes: ultima.mes, corte: ultima.corte }
+					}
+				: null,
 		tiposPreset: tipos.map((t) => ({ nombre: t.nombre, icono: t.icono })),
 		entradaNombresPreset: nombresEntrada.map((e) => e.nombre)
 	};

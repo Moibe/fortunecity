@@ -129,6 +129,7 @@
     GripVertical
   } from '@lucide/svelte';
   import { deserialize } from '$app/forms';
+  import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
   import type { PageData } from './$types';
 
@@ -210,6 +211,22 @@
     if (!a) return 1;
     if (!b) return -1;
     return a.localeCompare(b) * dir;
+  }
+
+  // ── Navegar entre quincenas (mes/corte, 15 antes que 30) ─────────────────────
+  type Periodo = { anio: number; mes: number; corte: number };
+  function claveQuincena(anio: number, mes: number, corte: number): number {
+    return anio * 10000 + mes * 100 + corte;
+  }
+  function siguientePeriodo(p: Periodo): Periodo {
+    if (p.corte === 15) return { anio: p.anio, mes: p.mes, corte: 30 };
+    if (p.mes === 12) return { anio: p.anio + 1, mes: 1, corte: 15 };
+    return { anio: p.anio, mes: p.mes + 1, corte: 15 };
+  }
+  function anteriorPeriodo(p: Periodo): Periodo {
+    if (p.corte === 30) return { anio: p.anio, mes: p.mes, corte: 15 };
+    if (p.mes === 1) return { anio: p.anio - 1, mes: 12, corte: 30 };
+    return { anio: p.anio, mes: p.mes - 1, corte: 30 };
   }
 
   let { data }: { data: PageData } = $props();
@@ -406,10 +423,11 @@
   // id de la entrada cuyo nombre se está editando (null = ninguna, fijo con lapicito por default).
   let editandoNombreFor = $state<number | null>(null);
 
-  // ── Estado, inicializado UNA vez desde la quincena cargada (si hay) ──────────
-  // untrack: leemos `data` solo para el valor inicial, no queremos reactividad aquí.
-  const inicial = untrack(() => {
-    const q = data.quincena;
+  // Arma el estado local a partir de los datos del server. Se usa una vez al
+  // montar (para `inicial`, vía untrack) y de nuevo cada vez que se navega a
+  // otra quincena (vía el efecto de resincronización, más abajo).
+  function construirEstado(d: PageData) {
+    const q = d.quincena;
     const rows: Gasto[] = (q?.renglones ?? []).map((r) => ({
       id: r.id,
       nombre: r.nombre,
@@ -429,8 +447,14 @@
       monto: e.monto,
       fecha: fechaAInput(e.fecha)
     }));
-    // Sin quincena cargada: default sensato a partir de la fecha de hoy.
+    // Sin quincena cargada: si se navegó a un slot vacío (adelante o un hueco),
+    // el default es ESE mes/corte (d.objetivo), no el de hoy.
     const hoy = new Date();
+    const defaults = d.objetivo ?? {
+      anio: hoy.getFullYear(),
+      mes: hoy.getMonth() + 1,
+      corte: hoy.getDate() <= 15 ? 15 : 30
+    };
     return {
       id: q?.id ?? null,
       entradas:
@@ -438,15 +462,19 @@
           ? entradasRows
           : [{ id: 1, nombre: '', monto: q?.total ?? 0, fecha: hoyInput() }],
       remanenteAnterior: q?.remanenteAnterior ?? 0,
-      anio: q?.anio ?? hoy.getFullYear(),
-      mes: q?.mes ?? hoy.getMonth() + 1,
-      corte: q?.corte ?? (hoy.getDate() <= 15 ? 15 : 30),
+      anio: q?.anio ?? defaults.anio,
+      mes: q?.mes ?? defaults.mes,
+      corte: q?.corte ?? defaults.corte,
       gastos:
         rows.length > 0
           ? rows
           : [{ id: 1, nombre: '', tipo: '', monto: 0, fecha: hoyInput(), notas: '', pagado: false, deudaId: null }]
     };
-  });
+  }
+
+  // ── Estado, inicializado UNA vez desde la quincena cargada (si hay) ──────────
+  // untrack: leemos `data` solo para el valor inicial, no queremos reactividad aquí.
+  const inicial = untrack(() => construirEstado(data));
 
   let quincenaId = $state<number | null>(inicial.id);
   let entradas = $state<EntradaItem[]>(inicial.entradas);
@@ -502,6 +530,12 @@
   // El próximo id local no debe chocar con los ids que vienen de la base.
   let nextId = Math.max(0, ...inicial.gastos.map((g) => g.id)) + 1;
 
+  // Rango de quincenas YA GUARDADAS (para saber hasta dónde se puede navegar).
+  // Arranca de lo que mandó el server; guardar() lo extiende localmente sin
+  // esperar a un reload cuando se guarda una quincena nueva en un extremo.
+  let primeraConocida = $state<Periodo | null>(untrack(() => data.rangoReal?.primera ?? null));
+  let ultimaConocida = $state<Periodo | null>(untrack(() => data.rangoReal?.ultima ?? null));
+
   let hovered = $state<number | null>(null); // id del segmento bajo el mouse (null = restante/ninguno)
 
   // ── Autoguardado (debounce) ──────────────────────────────────────────────────
@@ -528,26 +562,48 @@
   let payloadGuardado = $state('__init__');
   const dirty = $derived(payload !== payloadGuardado);
 
+  let guardadosEnVuelo = 0;
+
   async function guardar() {
     if (!dirty) return;
     const snapshot = payload; // por si el usuario sigue tecleando durante el fetch
+    // Identidad de la quincena que se está guardando: si el usuario navega a
+    // otra ANTES de que esta respuesta llegue, hay que ignorar sus efectos en
+    // el estado local (el server ya guardó bien -el snapshot se tomó antes del
+    // await-, pero aplicar quincenaId/payloadGuardado de la quincena VIEJA a
+    // la quincena que se ve AHORA corrompería su id y podría hacer que un
+    // guardado posterior sobreescriba la quincena vieja con datos de la nueva).
+    const claveAlGuardar = quincenaCargadaKey;
+    guardadosEnVuelo++;
     guardando = true;
     try {
       const body = new FormData();
       body.set('payload', snapshot);
       const response = await fetch('?/guardar', { method: 'POST', body });
       const result = deserialize(await response.text());
+      if (quincenaCargadaKey !== claveAlGuardar) return; // ya se navegó a otra quincena
+
       if (result.type === 'success' && result.data) {
         const resData = result.data as { id?: number };
         if (resData.id) quincenaId = resData.id;
         payloadGuardado = snapshot;
+        // Extiende el rango conocido de inmediato (sin esperar a un reload)
+        // por si esta quincena era nueva en un extremo del rango.
+        const clave = claveQuincena(anio, mes, corte);
+        if (!primeraConocida || clave < claveQuincena(primeraConocida.anio, primeraConocida.mes, primeraConocida.corte)) {
+          primeraConocida = { anio, mes, corte };
+        }
+        if (!ultimaConocida || clave > claveQuincena(ultimaConocida.anio, ultimaConocida.mes, ultimaConocida.corte)) {
+          ultimaConocida = { anio, mes, corte };
+        }
       } else if (result.type === 'failure') {
         console.error('No se pudo guardar la quincena', result.data);
       }
     } catch (e) {
       console.error('No se pudo guardar la quincena', e);
     } finally {
-      guardando = false;
+      guardadosEnVuelo--;
+      guardando = guardadosEnVuelo > 0;
     }
   }
 
@@ -562,6 +618,81 @@
     if (current === payloadGuardado) return;
     const timer = setTimeout(guardar, 800);
     return () => clearTimeout(timer);
+  });
+
+  // ── Navegación entre quincenas (flechas a los lados) ─────────────────────────
+  // Atrás: solo hasta la primera quincena real (no se inventan huecos antes).
+  // Adelante: hasta 2 quincenas después de la última real (no muy al futuro).
+  const puedeAnterior = $derived(
+    primeraConocida !== null &&
+      claveQuincena(anio, mes, corte) > claveQuincena(primeraConocida.anio, primeraConocida.mes, primeraConocida.corte)
+  );
+  const puedeSiguiente = $derived.by(() => {
+    if (!ultimaConocida) return true; // sin ninguna quincena real todavía: no hay límite que aplicar
+    const limite = siguientePeriodo(siguientePeriodo(ultimaConocida));
+    return claveQuincena(anio, mes, corte) < claveQuincena(limite.anio, limite.mes, limite.corte);
+  });
+
+  function irAQuincena(p: Periodo) {
+    const params = new URLSearchParams({ anio: String(p.anio), mes: String(p.mes), corte: String(p.corte) });
+    goto(`?${params.toString()}`, { noScroll: true, keepFocus: true });
+  }
+  function quincenaAnterior() {
+    if (puedeAnterior) irAQuincena(anteriorPeriodo({ anio, mes, corte }));
+  }
+  function quincenaSiguiente() {
+    if (puedeSiguiente) irAQuincena(siguientePeriodo({ anio, mes, corte }));
+  }
+
+  // Identifica QUÉ quincena está cargada actualmente según `data` (la que
+  // mandó el server, ya sea real o el objetivo de un slot vacío al que se
+  // navegó). Cuando esta clave cambia -tras goto()- resincroniza todo el
+  // estado local con la nueva quincena.
+  function claveDeData(d: PageData): string {
+    const q = d.quincena;
+    const anioRef = q?.anio ?? d.objetivo?.anio;
+    const mesRef = q?.mes ?? d.objetivo?.mes;
+    const corteRef = q?.corte ?? d.objetivo?.corte;
+    return `${q?.id ?? 'x'}:${anioRef}-${mesRef}-${corteRef}`;
+  }
+  let quincenaCargadaKey = untrack(() => claveDeData(data));
+
+  $effect(() => {
+    const key = claveDeData(data);
+    if (key === quincenaCargadaKey) return;
+    quincenaCargadaKey = key;
+
+    const nuevo = construirEstado(data);
+    quincenaId = nuevo.id;
+    entradas = nuevo.entradas;
+    nextEntradaId = Math.max(0, ...nuevo.entradas.map((e) => e.id)) + 1;
+    remanenteAnterior = nuevo.remanenteAnterior;
+    anio = nuevo.anio;
+    mes = nuevo.mes;
+    corte = nuevo.corte;
+    gastos = nuevo.gastos;
+    nextId = Math.max(0, ...nuevo.gastos.map((g) => g.id)) + 1;
+    primeraConocida = data.rangoReal?.primera ?? primeraConocida;
+    ultimaConocida = data.rangoReal?.ultima ?? ultimaConocida;
+
+    // Limpia estado transitorio de UI que apuntaba a renglones de la quincena anterior.
+    hovered = null;
+    openTipoFor = null;
+    iconoPickerFor = null;
+    iconoPickerObjetivo = null;
+    renombrandoTipo = null;
+    openEntradaDropdownFor = null;
+    editandoNombreFor = null;
+    openNotasFor = null;
+    editandoQuincena = false;
+    nuevoGastoId = null;
+    dragGastoId = null;
+    dragOverGastoId = null;
+    dragPointer = null;
+
+    // Lo recién cargado ya cuenta como "guardado" (evita que el autoguardado
+    // dispare de inmediato con datos que no cambiaron).
+    payloadGuardado = payload;
   });
 
   const quincenaLabel = $derived(`${MESES[mes - 1]}-${corte}`);
@@ -765,6 +896,27 @@
 </script>
 
 <div class="qnc">
+  <button
+    type="button"
+    class="q-nav q-nav-prev"
+    onclick={quincenaAnterior}
+    disabled={!puedeAnterior}
+    aria-label="Quincena anterior"
+    title="Quincena anterior"
+  >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+  </button>
+  <button
+    type="button"
+    class="q-nav q-nav-next"
+    onclick={quincenaSiguiente}
+    disabled={!puedeSiguiente}
+    aria-label="Quincena siguiente"
+    title="Quincena siguiente"
+  >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+  </button>
+
   <div class="qnc-grid">
     <!-- ── Captura ─────────────────────────────────────────────────────── -->
     <section class="capture">
@@ -1373,6 +1525,55 @@
     margin: 0 auto;
     padding: 0.5rem 0.25rem 1rem;
     color: rgba(255, 255, 255, 0.95);
+  }
+
+  /* ── Navegación entre quincenas (flechas fijas a los lados) ─────────────── */
+  .q-nav {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px) saturate(110%);
+    -webkit-backdrop-filter: blur(8px) saturate(110%);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+  }
+  .q-nav:hover:not(:disabled) {
+    background: rgba(134, 239, 172, 0.16);
+    border-color: rgba(134, 239, 172, 0.4);
+    color: #fff;
+  }
+  .q-nav:disabled {
+    opacity: 0.22;
+    cursor: default;
+  }
+  .q-nav-prev {
+    left: calc(var(--sidebar-width, 240px) + 2.5rem);
+  }
+  .q-nav-next {
+    right: 1.5rem;
+  }
+  @media (max-width: 680px) {
+    .q-nav {
+      width: 36px;
+      height: 36px;
+    }
+    .q-nav-prev {
+      left: 0.5rem;
+    }
+    .q-nav-next {
+      right: 0.5rem;
+    }
   }
   .save-status {
     display: block;
