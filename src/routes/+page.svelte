@@ -2181,7 +2181,9 @@
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    right: 0;
+    min-width: 100%;
+    width: max-content;
+    max-width: 260px;
     z-index: 20;
     margin: 0;
     padding: 0.3rem;
