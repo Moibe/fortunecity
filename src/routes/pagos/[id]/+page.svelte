@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { Upload, Eye } from '@lucide/svelte';
+  import { Paperclip, Eye } from '@lucide/svelte';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
@@ -67,7 +67,7 @@
         hidden
         onchange={(e) => (evidenciaNombre = e.currentTarget.files?.[0]?.name ?? '')}
       />
-      <Upload size={14} />
+      <Paperclip size={14} />
       <span class="np-evidencia-texto">{evidenciaNombre || 'Evidencia'}</span>
     </label>
     <button type="submit" class="np-add">+ Agregar pago</button>
@@ -77,21 +77,22 @@
     {#each data.pagos as p (p.id)}
       <li>
         <span class="pago-fecha">{p.fechaTexto}</span>
-        {#if p.evidencia}
-          {@const src = p.evidencia}
-          <button
-            type="button"
-            class="pago-evidencia"
-            onclick={() => (evidenciaAbierta = src)}
-            aria-label="Ver evidencia"
-            title="Ver evidencia"
-          >
-            <Eye size={14} />
-          </button>
-        {:else}
+        <div class="pago-evidencias">
+          {#if p.evidencia}
+            {@const src = p.evidencia}
+            <button
+              type="button"
+              class="pago-evidencia"
+              onclick={() => (evidenciaAbierta = src)}
+              aria-label="Ver evidencia"
+              title="Ver evidencia"
+            >
+              <Eye size={14} />
+            </button>
+          {/if}
           <form method="POST" action="?/agregarEvidencia" enctype="multipart/form-data" use:enhance>
             <input type="hidden" name="id" value={p.id} />
-            <label class="pago-evidencia pago-evidencia-add" title="Agregar evidencia">
+            <label class="pago-evidencia pago-evidencia-add" title={p.evidencia ? 'Cambiar evidencia' : 'Agregar evidencia'}>
               <input
                 type="file"
                 name="evidencia"
@@ -99,10 +100,10 @@
                 hidden
                 onchange={(e) => e.currentTarget.form?.requestSubmit()}
               />
-              <Upload size={13} />
+              <Paperclip size={13} />
             </label>
           </form>
-        {/if}
+        </div>
         <span class="pago-cantidad">{fmt.format(p.cantidad)}</span>
         <form method="POST" action="?/borrarPago" use:enhance>
           <input type="hidden" name="id" value={p.id} />
@@ -261,12 +262,17 @@
   }
   .pagos-lista li {
     display: grid;
-    grid-template-columns: 1fr 22px auto 28px;
+    grid-template-columns: 1fr 50px auto 28px;
     align-items: center;
     gap: 0.75rem;
     padding: 0.5rem 0.6rem;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.03);
+  }
+  .pago-evidencias {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
   }
   .pago-evidencia {
     display: flex;
