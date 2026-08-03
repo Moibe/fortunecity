@@ -98,7 +98,13 @@
                 name="evidencia"
                 accept="image/*"
                 hidden
-                onchange={(e) => e.currentTarget.form?.requestSubmit()}
+                onchange={(e) => {
+                  if (p.evidencia && !confirm('¿Reemplazar la evidencia que ya tiene este pago?')) {
+                    e.currentTarget.value = '';
+                    return;
+                  }
+                  e.currentTarget.form?.requestSubmit();
+                }}
               />
               <Paperclip size={13} />
             </label>
