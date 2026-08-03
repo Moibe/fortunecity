@@ -23,6 +23,8 @@ function formatoFecha(d: Date): string {
 	return `${day}/${mes}/${anio}`;
 }
 
+const MAX_EVIDENCIA_BYTES = 8 * 1024 * 1024; // 8MB, alcanza sobrado para una foto de recibo
+
 export const load: PageServerLoad = async ({ params }) => {
 	const id = Number(params.id);
 	if (!Number.isInteger(id)) error(404, 'Deuda no encontrada');
@@ -35,7 +37,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	const listaPagos = [...deuda.pagos]
 		.sort((a, b) => b.fecha.getTime() - a.fecha.getTime())
-		.map((p) => ({ id: p.id, cantidad: p.cantidad, fechaTexto: formatoFecha(p.fecha) }));
+		.map((p) => ({ id: p.id, cantidad: p.cantidad, fechaTexto: formatoFecha(p.fecha), evidencia: p.recibo }));
 
 	return {
 		deuda: { id: deuda.id, nombre: deuda.nombre, monto: deuda.monto },
@@ -53,7 +55,20 @@ export const actions: Actions = {
 		const fecha = parseFecha(String(form.get('fecha') ?? ''));
 		if (cantidad <= 0) return fail(400, { error: 'cantidad inválida' });
 
-		db.insert(pagos).values({ deudaId, cantidad, fecha }).run();
+		// Evidencia (foto del recibo): opcional. Se guarda como data URI directo
+		// en la columna `recibo` (texto) - nada de archivos en disco que haya
+		// que hacer sobrevivir a cada deploy del droplet.
+		const archivo = form.get('evidencia');
+		let evidencia: string | null = null;
+		if (archivo instanceof File && archivo.size > 0) {
+			if (archivo.size > MAX_EVIDENCIA_BYTES) {
+				return fail(400, { error: 'La evidencia pesa demasiado (máx 8MB)' });
+			}
+			const base64 = Buffer.from(await archivo.arrayBuffer()).toString('base64');
+			evidencia = `data:${archivo.type};base64,${base64}`;
+		}
+
+		db.insert(pagos).values({ deudaId, cantidad, fecha, recibo: evidencia }).run();
 		return { success: true };
 	},
 

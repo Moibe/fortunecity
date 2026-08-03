@@ -14,6 +14,8 @@
 
   let nuevaFecha = $state(hoyInput());
   let nuevaCantidad = $state('');
+  let evidenciaInput: HTMLInputElement | undefined = $state();
+  let evidenciaNombre = $state('');
 
   const fmt = new Intl.NumberFormat('es-MX', {
     style: 'currency',
@@ -34,12 +36,15 @@
     class="nuevo-pago"
     method="POST"
     action="?/agregarPago"
+    enctype="multipart/form-data"
     use:enhance={() => {
       return async ({ result, update }) => {
         await update();
         if (result.type === 'success') {
           nuevaCantidad = '';
           nuevaFecha = hoyInput();
+          evidenciaNombre = '';
+          if (evidenciaInput) evidenciaInput.value = '';
         }
       };
     }}
@@ -49,6 +54,17 @@
       <span class="cur">$</span>
       <input type="text" inputmode="decimal" name="cantidad" placeholder="0.00" bind:value={nuevaCantidad} />
     </div>
+    <label class="np-evidencia" title="Evidencia (foto del recibo)">
+      <input
+        bind:this={evidenciaInput}
+        type="file"
+        name="evidencia"
+        accept="image/*"
+        hidden
+        onchange={(e) => (evidenciaNombre = e.currentTarget.files?.[0]?.name ?? '')}
+      />
+      <span class="np-evidencia-texto">📎 {evidenciaNombre || 'Evidencia'}</span>
+    </label>
     <button type="submit" class="np-add">+ Agregar pago</button>
   </form>
 
@@ -56,6 +72,11 @@
     {#each data.pagos as p (p.id)}
       <li>
         <span class="pago-fecha">{p.fechaTexto}</span>
+        {#if p.evidencia}
+          <a class="pago-evidencia" href={p.evidencia} target="_blank" rel="noopener noreferrer" title="Ver evidencia">📎</a>
+        {:else}
+          <span class="pago-evidencia"></span>
+        {/if}
         <span class="pago-cantidad">{fmt.format(p.cantidad)}</span>
         <form method="POST" action="?/borrarPago" use:enhance>
           <input type="hidden" name="id" value={p.id} />
@@ -106,7 +127,7 @@
 
   .nuevo-pago {
     display: grid;
-    grid-template-columns: 140px 1fr auto;
+    grid-template-columns: 140px 1fr auto auto;
     gap: 0.5rem;
     margin-bottom: 1.5rem;
   }
@@ -158,6 +179,29 @@
     background: rgba(134, 239, 172, 0.24);
     color: #fff;
   }
+  .np-evidencia {
+    display: flex;
+    align-items: center;
+    max-width: 140px;
+    border-radius: 8px;
+    border: 1px dashed rgba(255, 255, 255, 0.22);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.55);
+    padding: 0 0.7rem;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  .np-evidencia:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .np-evidencia-texto {
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   .pagos-lista {
     list-style: none;
@@ -169,12 +213,28 @@
   }
   .pagos-lista li {
     display: grid;
-    grid-template-columns: 1fr auto 28px;
+    grid-template-columns: 1fr 22px auto 28px;
     align-items: center;
     gap: 0.75rem;
     padding: 0.5rem 0.6rem;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.03);
+  }
+  .pago-evidencia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    filter: grayscale(1);
+    opacity: 0.6;
+    transition: opacity 0.15s ease, filter 0.15s ease;
+  }
+  a.pago-evidencia:hover {
+    filter: none;
+    opacity: 1;
   }
   .pago-fecha {
     color: rgba(255, 255, 255, 0.7);
