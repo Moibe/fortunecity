@@ -798,11 +798,10 @@
   });
 
   // Qué mostrar en el centro de la dona.
+  // El centro SIEMPRE muestra el dato general (Restante/Te pasaste): el hover
+  // -de un renglón de la tabla o del propio segmento- solo ilumina el arco,
+  // no cambia lo que se ve en el centro.
   const centro = $derived.by(() => {
-    if (hovered !== null) {
-      const s = segments.find((x) => x.id === hovered);
-      if (s) return { label: s.nombre, monto: s.monto, sub: `${pct(s.monto).toFixed(1)}%` };
-    }
     if (sobregiro) return { label: 'Te pasaste', monto: restante, sub: 'sobregiro' };
     return { label: 'Restante', monto: restante, sub: disponible > 0 ? `${pct(restante).toFixed(1)}%` : '—' };
   });
@@ -841,11 +840,9 @@
     return segs;
   });
 
+  // Mismo criterio que `centro`: el centro siempre muestra "Pagado", el hover
+  // solo ilumina el segmento.
   const centroPagado = $derived.by(() => {
-    if (hoveredPagado !== null) {
-      const s = segmentsPagado.find((x) => x.id === hoveredPagado);
-      if (s) return { label: s.nombre, monto: s.monto, sub: `${pct(s.monto).toFixed(1)}%` };
-    }
     return { label: 'Pagado', monto: asignadoPagado, sub: disponible > 0 ? `${pct(asignadoPagado).toFixed(1)}%` : '—' };
   });
 
