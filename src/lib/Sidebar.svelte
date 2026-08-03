@@ -86,6 +86,17 @@
       <span class="nav-ico" aria-hidden="true"></span>
       <span>Distribución</span>
     </a>
+    <a
+      href="/pagos"
+      class="nav-item"
+      aria-current={page.url.pathname === '/pagos' ? 'page' : undefined}
+      onclick={() => {
+        if (isMobile) closeMobile();
+      }}
+    >
+      <span class="nav-ico" aria-hidden="true"></span>
+      <span>Pagos</span>
+    </a>
   </nav>
 
   <div class="sidebar-footer">
