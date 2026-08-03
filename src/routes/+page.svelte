@@ -807,6 +807,48 @@
     return { label: 'Restante', monto: restante, sub: disponible > 0 ? `${pct(restante).toFixed(1)}%` : '—' };
   });
 
+  // ── Segunda dona: solo lo PAGADO (palomita marcada) ──────────────────────────
+  // Mismo `denom` que la dona principal (ya ajustado por sobregiro), así las
+  // dos donas quedan en la misma escala y son comparables a simple vista.
+  let hoveredPagado = $state<number | null>(null);
+  const asignadoPagado = $derived(
+    gastos.filter((g) => g.pagado).reduce((s, g) => s + (Number(g.monto) || 0), 0)
+  );
+  // Todo lo que no se ha pagado todavía: tanto lo asignado-sin-pagar como lo
+  // genuinamente disponible-sin-asignar. Nunca es negativo (pagado <= asignado <= denom).
+  const sinPagar = $derived(denom - asignadoPagado);
+
+  const segmentsPagado = $derived.by((): Seg[] => {
+    const items = gastos.filter((g) => g.pagado && (Number(g.monto) || 0) > 0);
+    const segs: Seg[] = [];
+    let acc = 0;
+    items.forEach((g, i) => {
+      const frac = (Number(g.monto) || 0) / denom;
+      segs.push({
+        id: g.id,
+        nombre: g.nombre.trim() || `Proyecto ${i + 1}`,
+        monto: Number(g.monto) || 0,
+        color: colorPorGastoId.get(g.id) ?? PALETTE[i % PALETTE.length],
+        len: frac * C,
+        offset: acc * C
+      });
+      acc += frac;
+    });
+    if (sinPagar > 0.001) {
+      // id -1 (no null): así se puede distinguir "hover en Sin pagar" de "sin hover".
+      segs.push({ id: -1, nombre: 'Sin pagar', monto: sinPagar, color: RESTANTE_COLOR, len: (sinPagar / denom) * C, offset: acc * C });
+    }
+    return segs;
+  });
+
+  const centroPagado = $derived.by(() => {
+    if (hoveredPagado !== null) {
+      const s = segmentsPagado.find((x) => x.id === hoveredPagado);
+      if (s) return { label: s.nombre, monto: s.monto, sub: `${pct(s.monto).toFixed(1)}%` };
+    }
+    return { label: 'Pagado', monto: asignadoPagado, sub: disponible > 0 ? `${pct(asignadoPagado).toFixed(1)}%` : '—' };
+  });
+
   type TipoRow = { tipo: string; monto: number; color: string };
 
   // Distribución agrupada por Tipo (en vez de por proyecto). Mismo denominador
@@ -1484,6 +1526,41 @@
           <li class="empty">Captura un total y tus proyectos para ver la distribución.</li>
         {/if}
       </ul>
+
+      <!-- Segunda dona: solo lo pagado (palomita marcada), misma escala que la de arriba. -->
+      <div class="pagado-chart">
+        <h3 class="chart-subtitle">Pagado</h3>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 160 160" class="donut" role="img" aria-label="Distribución de lo pagado">
+            <circle cx="80" cy="80" r={R} fill="none" stroke="rgba(255,255,255,0.08)" stroke-width={STROKE} />
+            <g transform="rotate(-90 80 80)">
+              {#each segmentsPagado as s (s.id)}
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={R}
+                  fill="none"
+                  stroke={s.color}
+                  stroke-width={hoveredPagado === s.id ? STROKE + 4 : STROKE}
+                  stroke-dasharray="{Math.max(s.len - (segmentsPagado.length > 1 ? GAP : 0), 0.001)} {C}"
+                  stroke-dashoffset={-s.offset}
+                  class="seg"
+                  class:dim={hoveredPagado !== null && hoveredPagado !== s.id}
+                  onmouseenter={() => (hoveredPagado = s.id)}
+                  onmouseleave={() => (hoveredPagado = null)}
+                >
+                  <title>{s.nombre}: {fmt.format(s.monto)} ({pct(s.monto).toFixed(1)}%)</title>
+                </circle>
+              {/each}
+            </g>
+            <!-- centro -->
+            <text x="80" y="74" text-anchor="middle" class="c-label">{centroPagado.label}</text>
+            <text x="80" y="90" text-anchor="middle" class="c-monto">{fmt.format(centroPagado.monto)}</text>
+            <text x="80" y="103" text-anchor="middle" class="c-sub">{centroPagado.sub}</text>
+          </svg>
+        </div>
+      </div>
 
       <!-- Segunda gráfica: la misma distribución, agrupada por Tipo. -->
       <div class="tipo-chart">
@@ -2626,6 +2703,14 @@
   }
 
   /* ── Segunda gráfica: distribución por Tipo (barras horizontales) ───────── */
+  .pagado-chart {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .pagado-chart .donut-wrap {
+    margin-top: -0.25rem;
+  }
   .tipo-chart {
     margin-top: 1.5rem;
     padding-top: 1.25rem;
