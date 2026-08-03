@@ -846,6 +846,57 @@
     return { label: 'Pagado', monto: asignadoPagado, sub: disponible > 0 ? `${pct(asignadoPagado).toFixed(1)}%` : '—' };
   });
 
+  // ── Callout (línea + etiqueta) del segmento en hover ─────────────────────────
+  // Como el centro ya no cambia con el hover, el nombre/monto del segmento se
+  // muestra a un lado de la dona, conectado con una línea al punto exacto del
+  // arco. Mismo ángulo con el que se dibuja el arco (offset+len/2 a lo largo de
+  // la circunferencia), menos 90° porque el <g> del donut ya viene rotado -90.
+  type Callout = {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    x3: number;
+    y3: number;
+    anchor: 'start' | 'end';
+    nombre: string;
+    monto: number;
+    sub: string;
+  };
+  function calloutDeSegmento(s: Seg): Callout {
+    const t = (s.offset + s.len / 2) / C;
+    const anguloRad = ((t * 360 - 90) * Math.PI) / 180;
+    const cosA = Math.cos(anguloRad);
+    const sinA = Math.sin(anguloRad);
+    const r1 = R + STROKE / 2; // borde visible del anillo
+    const r2 = r1 + 10; // codo, un poco más afuera
+    const kink = 14; // tramo horizontal hacia la etiqueta
+    const anchor: 'start' | 'end' = cosA >= 0 ? 'start' : 'end';
+    const nombreCorto = s.nombre.length > 18 ? `${s.nombre.slice(0, 17)}…` : s.nombre;
+    return {
+      x1: 80 + r1 * cosA,
+      y1: 80 + r1 * sinA,
+      x2: 80 + r2 * cosA,
+      y2: 80 + r2 * sinA,
+      x3: 80 + r2 * cosA + (anchor === 'start' ? kink : -kink),
+      y3: 80 + r2 * sinA,
+      anchor,
+      nombre: nombreCorto,
+      monto: s.monto,
+      sub: `${pct(s.monto).toFixed(1)}%`
+    };
+  }
+  const calloutPrincipal = $derived.by((): Callout | null => {
+    if (hovered === null) return null;
+    const s = segments.find((x) => x.id === hovered);
+    return s ? calloutDeSegmento(s) : null;
+  });
+  const calloutPagado = $derived.by((): Callout | null => {
+    if (hoveredPagado === null) return null;
+    const s = segmentsPagado.find((x) => x.id === hoveredPagado);
+    return s ? calloutDeSegmento(s) : null;
+  });
+
   type TipoRow = { tipo: string; monto: number; color: string };
 
   // Distribución agrupada por Tipo (en vez de por proyecto). Mismo denominador
@@ -1499,10 +1550,33 @@
           </g>
           <!-- centro -->
           <text x="80" y="74" text-anchor="middle" class="c-label">{centro.label}</text>
-          <text x="80" y="90" text-anchor="middle" class="c-monto" class:over={sobregiro && hovered === null}>
+          <text x="80" y="90" text-anchor="middle" class="c-monto" class:over={sobregiro}>
             {fmt.format(centro.monto)}
           </text>
           <text x="80" y="103" text-anchor="middle" class="c-sub">{centro.sub}</text>
+          {#if calloutPrincipal}
+            {@const c = calloutPrincipal}
+            <g class="callout">
+              <circle cx={c.x1} cy={c.y1} r="2.5" fill="#fff" />
+              <polyline points="{c.x1},{c.y1} {c.x2},{c.y2} {c.x3},{c.y3}" class="callout-linea" />
+              <text
+                x={c.x3 + (c.anchor === 'start' ? 3 : -3)}
+                y={c.y3 - 4}
+                text-anchor={c.anchor}
+                class="callout-nombre"
+              >
+                {c.nombre}
+              </text>
+              <text
+                x={c.x3 + (c.anchor === 'start' ? 3 : -3)}
+                y={c.y3 + 8}
+                text-anchor={c.anchor}
+                class="callout-sub"
+              >
+                {fmt.format(c.monto)} · {c.sub}
+              </text>
+            </g>
+          {/if}
         </svg>
       </div>
 
@@ -1537,6 +1611,29 @@
             <text x="80" y="74" text-anchor="middle" class="c-label">{centroPagado.label}</text>
             <text x="80" y="90" text-anchor="middle" class="c-monto">{fmt.format(centroPagado.monto)}</text>
             <text x="80" y="103" text-anchor="middle" class="c-sub">{centroPagado.sub}</text>
+            {#if calloutPagado}
+              {@const c = calloutPagado}
+              <g class="callout">
+                <circle cx={c.x1} cy={c.y1} r="2.5" fill="#fff" />
+                <polyline points="{c.x1},{c.y1} {c.x2},{c.y2} {c.x3},{c.y3}" class="callout-linea" />
+                <text
+                  x={c.x3 + (c.anchor === 'start' ? 3 : -3)}
+                  y={c.y3 - 4}
+                  text-anchor={c.anchor}
+                  class="callout-nombre"
+                >
+                  {c.nombre}
+                </text>
+                <text
+                  x={c.x3 + (c.anchor === 'start' ? 3 : -3)}
+                  y={c.y3 + 8}
+                  text-anchor={c.anchor}
+                  class="callout-sub"
+                >
+                  {fmt.format(c.monto)} · {c.sub}
+                </text>
+              </g>
+            {/if}
           </svg>
         </div>
       </div>
@@ -2609,6 +2706,7 @@
     width: 100%;
     max-width: 260px;
     height: auto;
+    overflow: visible;
   }
   .seg {
     cursor: pointer;
@@ -2634,6 +2732,26 @@
   .c-sub {
     fill: rgba(255, 255, 255, 0.5);
     font-size: 6.5px;
+  }
+
+  /* ── Callout del segmento en hover (línea + etiqueta a un lado) ─────────── */
+  .callout {
+    pointer-events: none;
+  }
+  .callout-linea {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.7);
+    stroke-width: 1;
+  }
+  .callout-nombre {
+    fill: #fff;
+    font-size: 7px;
+    font-weight: 600;
+  }
+  .callout-sub {
+    fill: rgba(255, 255, 255, 0.65);
+    font-size: 6px;
+    font-variant-numeric: tabular-nums;
   }
 
   /* ── Segunda gráfica: distribución por Tipo (barras horizontales) ───────── */
