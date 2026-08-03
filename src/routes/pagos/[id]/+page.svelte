@@ -19,7 +19,7 @@
   let nuevaFecha = $state(hoyInput());
   let nuevaCantidad = $state('');
   let evidenciaInput: HTMLInputElement | undefined = $state();
-  let evidenciaNombre = $state('');
+  let evidenciaAdjunta = $state(false);
 
   const fmt = new Intl.NumberFormat('es-MX', {
     style: 'currency',
@@ -47,7 +47,7 @@
         if (result.type === 'success') {
           nuevaCantidad = '';
           nuevaFecha = hoyInput();
-          evidenciaNombre = '';
+          evidenciaAdjunta = false;
           if (evidenciaInput) evidenciaInput.value = '';
         }
       };
@@ -58,17 +58,17 @@
       <span class="cur">$</span>
       <input type="text" inputmode="decimal" name="cantidad" placeholder="0.00" bind:value={nuevaCantidad} />
     </div>
-    <label class="np-evidencia" title="Evidencia (foto del recibo)">
+    <label class="np-evidencia" class:adjunta={evidenciaAdjunta} title="Evidencia (foto del recibo)">
       <input
         bind:this={evidenciaInput}
         type="file"
         name="evidencia"
         accept="image/*"
         hidden
-        onchange={(e) => (evidenciaNombre = e.currentTarget.files?.[0]?.name ?? '')}
+        onchange={(e) => (evidenciaAdjunta = !!e.currentTarget.files?.[0])}
       />
       <Paperclip size={14} />
-      <span class="np-evidencia-texto">{evidenciaNombre || 'Evidencia'}</span>
+      <span class="np-evidencia-texto">Evidencia</span>
     </label>
     <button type="submit" class="np-add">+ Agregar pago</button>
   </form>
@@ -244,6 +244,11 @@
     color: #fff;
     border-color: rgba(255, 255, 255, 0.4);
     background: rgba(255, 255, 255, 0.04);
+  }
+  .np-evidencia.adjunta {
+    border-style: solid;
+    border-color: rgba(134, 239, 172, 0.5);
+    color: #86efac;
   }
   .np-evidencia-texto {
     font-size: 0.85rem;
