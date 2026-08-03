@@ -1508,25 +1508,6 @@
         </svg>
       </div>
 
-      <!-- Leyenda = relieve requerido por contraste (labels visibles con valores). -->
-      <ul class="legend">
-        {#each segments as s (s.id ?? 'restante')}
-          <li
-            class:active={hovered === s.id}
-            onmouseenter={() => (hovered = s.id)}
-            onmouseleave={() => (hovered = null)}
-          >
-            <span class="swatch" style="background: {s.color}"></span>
-            <span class="l-name">{s.nombre}</span>
-            <span class="l-val">{fmt.format(s.monto)}</span>
-            <span class="l-pct">{pct(s.monto).toFixed(0)}%</span>
-          </li>
-        {/each}
-        {#if segments.length === 0}
-          <li class="empty">Captura un total y tus proyectos para ver la distribución.</li>
-        {/if}
-      </ul>
-
       <!-- Segunda dona: solo lo pagado (palomita marcada), misma escala que la de arriba. -->
       <div class="pagado-chart">
         <h3 class="chart-subtitle">Pagado</h3>
@@ -2655,51 +2636,6 @@
   .c-sub {
     fill: rgba(255, 255, 255, 0.5);
     font-size: 6.5px;
-  }
-
-  /* ── Leyenda ─────────────────────────────────────────────────────────── */
-  .legend {
-    list-style: none;
-    margin: 1.25rem 0 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-  .legend li {
-    display: grid;
-    grid-template-columns: 14px 1fr auto auto;
-    gap: 0.6rem;
-    align-items: center;
-    padding: 0.4rem 0.5rem;
-    border-radius: 7px;
-    font-size: 0.9rem;
-    transition: background 0.15s ease;
-  }
-  .legend li.active {
-    background: rgba(255, 255, 255, 0.07);
-  }
-  .l-name {
-    color: rgba(255, 255, 255, 0.9);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .l-val {
-    color: #fff;
-    font-variant-numeric: tabular-nums;
-  }
-  .l-pct {
-    color: rgba(255, 255, 255, 0.5);
-    font-variant-numeric: tabular-nums;
-    min-width: 2.5em;
-    text-align: right;
-  }
-  .legend .empty {
-    display: block;
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 0.85rem;
-    padding: 0.5rem;
   }
 
   /* ── Segunda gráfica: distribución por Tipo (barras horizontales) ───────── */
