@@ -25,6 +25,18 @@ function formatoFecha(d: Date): string {
 
 const MAX_EVIDENCIA_BYTES = 8 * 1024 * 1024; // 8MB, alcanza sobrado para una foto de recibo
 
+// Lee un <input type="file"> del formulario y lo convierte a data URI base64
+// -sin archivos en disco que haya que hacer sobrevivir a cada deploy del
+// droplet-. `valor: null` significa "no se adjuntó nada" (no es un error).
+async function leerEvidencia(
+	archivo: FormDataEntryValue | null
+): Promise<{ ok: true; valor: string | null } | { ok: false; error: string }> {
+	if (!(archivo instanceof File) || archivo.size === 0) return { ok: true, valor: null };
+	if (archivo.size > MAX_EVIDENCIA_BYTES) return { ok: false, error: 'La evidencia pesa demasiado (máx 8MB)' };
+	const base64 = Buffer.from(await archivo.arrayBuffer()).toString('base64');
+	return { ok: true, valor: `data:${archivo.type};base64,${base64}` };
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const id = Number(params.id);
 	if (!Number.isInteger(id)) error(404, 'Deuda no encontrada');
@@ -55,20 +67,11 @@ export const actions: Actions = {
 		const fecha = parseFecha(String(form.get('fecha') ?? ''));
 		if (cantidad <= 0) return fail(400, { error: 'cantidad inválida' });
 
-		// Evidencia (foto del recibo): opcional. Se guarda como data URI directo
-		// en la columna `recibo` (texto) - nada de archivos en disco que haya
-		// que hacer sobrevivir a cada deploy del droplet.
-		const archivo = form.get('evidencia');
-		let evidencia: string | null = null;
-		if (archivo instanceof File && archivo.size > 0) {
-			if (archivo.size > MAX_EVIDENCIA_BYTES) {
-				return fail(400, { error: 'La evidencia pesa demasiado (máx 8MB)' });
-			}
-			const base64 = Buffer.from(await archivo.arrayBuffer()).toString('base64');
-			evidencia = `data:${archivo.type};base64,${base64}`;
-		}
+		// Evidencia (foto del recibo): opcional al crear el pago.
+		const resultado = await leerEvidencia(form.get('evidencia'));
+		if (!resultado.ok) return fail(400, { error: resultado.error });
 
-		db.insert(pagos).values({ deudaId, cantidad, fecha, recibo: evidencia }).run();
+		db.insert(pagos).values({ deudaId, cantidad, fecha, recibo: resultado.valor }).run();
 		return { success: true };
 	},
 
@@ -78,6 +81,20 @@ export const actions: Actions = {
 		if (!Number.isInteger(id)) return fail(400, { error: 'id inválido' });
 
 		db.delete(pagos).where(eq(pagos.id, id)).run();
+		return { success: true };
+	},
+
+	// Agrega (o reemplaza) la evidencia de un pago que ya existía sin una.
+	agregarEvidencia: async ({ request }) => {
+		const form = await request.formData();
+		const id = Number(form.get('id'));
+		if (!Number.isInteger(id)) return fail(400, { error: 'id inválido' });
+
+		const resultado = await leerEvidencia(form.get('evidencia'));
+		if (!resultado.ok) return fail(400, { error: resultado.error });
+		if (!resultado.valor) return fail(400, { error: 'evidencia vacía' });
+
+		db.update(pagos).set({ recibo: resultado.valor }).where(eq(pagos.id, id)).run();
 		return { success: true };
 	}
 };

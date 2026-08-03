@@ -75,7 +75,19 @@
         {#if p.evidencia}
           <a class="pago-evidencia" href={p.evidencia} target="_blank" rel="noopener noreferrer" title="Ver evidencia">📎</a>
         {:else}
-          <span class="pago-evidencia"></span>
+          <form method="POST" action="?/agregarEvidencia" enctype="multipart/form-data" use:enhance>
+            <input type="hidden" name="id" value={p.id} />
+            <label class="pago-evidencia pago-evidencia-add" title="Agregar evidencia">
+              <input
+                type="file"
+                name="evidencia"
+                accept="image/*"
+                hidden
+                onchange={(e) => e.currentTarget.form?.requestSubmit()}
+              />
+              📎
+            </label>
+          </form>
         {/if}
         <span class="pago-cantidad">{fmt.format(p.cantidad)}</span>
         <form method="POST" action="?/borrarPago" use:enhance>
@@ -235,6 +247,16 @@
   a.pago-evidencia:hover {
     filter: none;
     opacity: 1;
+  }
+  .pago-evidencia-add {
+    border: 1px dashed rgba(255, 255, 255, 0.25);
+    border-radius: 6px;
+    cursor: pointer;
+    filter: none;
+  }
+  .pago-evidencia-add:hover {
+    opacity: 1;
+    border-color: rgba(134, 239, 172, 0.5);
   }
   .pago-fecha {
     color: rgba(255, 255, 255, 0.7);
