@@ -1474,6 +1474,7 @@
 
     <!-- ── Gráfica ─────────────────────────────────────────────────────── -->
     <section class="chart">
+      <h3 class="chart-subtitle">Planeado</h3>
       <div class="donut-wrap">
         <svg viewBox="0 0 160 160" class="donut" role="img" aria-label="Distribución de la quincena">
           <!-- track de fondo -->
