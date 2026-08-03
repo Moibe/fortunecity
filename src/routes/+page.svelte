@@ -1253,8 +1253,16 @@
             class:dragging={dragGastoId === g.id}
             class:drag-over={dragOverGastoId === g.id && dragGastoId !== null && dragGastoId !== g.id}
             data-gasto-id={g.id}
-            onmouseenter={() => (hovered = g.id)}
-            onmouseleave={() => (hovered = null)}
+            onmouseenter={() => {
+              hovered = g.id;
+              // También en la dona de Pagado, pero solo si este gasto SÍ tiene
+              // segmento ahí (está pagado) - si no, no hay nada que iluminar.
+              hoveredPagado = g.pagado && (Number(g.monto) || 0) > 0 ? g.id : null;
+            }}
+            onmouseleave={() => {
+              hovered = null;
+              hoveredPagado = null;
+            }}
             role="listitem"
           >
             <button
