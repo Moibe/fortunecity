@@ -1,8 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { Upload, Eye } from '@lucide/svelte';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
+
+  // Data URI de la evidencia que se está mostrando en el modal (null = cerrado).
+  let evidenciaAbierta = $state<string | null>(null);
 
   function hoyInput(): string {
     const hoy = new Date();
@@ -63,7 +67,8 @@
         hidden
         onchange={(e) => (evidenciaNombre = e.currentTarget.files?.[0]?.name ?? '')}
       />
-      <span class="np-evidencia-texto">📎 {evidenciaNombre || 'Evidencia'}</span>
+      <Upload size={14} />
+      <span class="np-evidencia-texto">{evidenciaNombre || 'Evidencia'}</span>
     </label>
     <button type="submit" class="np-add">+ Agregar pago</button>
   </form>
@@ -73,7 +78,16 @@
       <li>
         <span class="pago-fecha">{p.fechaTexto}</span>
         {#if p.evidencia}
-          <a class="pago-evidencia" href={p.evidencia} target="_blank" rel="noopener noreferrer" title="Ver evidencia">📎</a>
+          {@const src = p.evidencia}
+          <button
+            type="button"
+            class="pago-evidencia"
+            onclick={() => (evidenciaAbierta = src)}
+            aria-label="Ver evidencia"
+            title="Ver evidencia"
+          >
+            <Eye size={14} />
+          </button>
         {:else}
           <form method="POST" action="?/agregarEvidencia" enctype="multipart/form-data" use:enhance>
             <input type="hidden" name="id" value={p.id} />
@@ -85,7 +99,7 @@
                 hidden
                 onchange={(e) => e.currentTarget.form?.requestSubmit()}
               />
-              📎
+              <Upload size={13} />
             </label>
           </form>
         {/if}
@@ -101,6 +115,26 @@
     {/if}
   </ul>
 </div>
+
+{#if evidenciaAbierta}
+  <button
+    type="button"
+    class="evidencia-backdrop"
+    onclick={() => (evidenciaAbierta = null)}
+    aria-label="Cerrar evidencia"
+  ></button>
+  <div class="evidencia-modal">
+    <button
+      type="button"
+      class="evidencia-modal-close"
+      onclick={() => (evidenciaAbierta = null)}
+      aria-label="Cerrar"
+    >
+      ×
+    </button>
+    <img src={evidenciaAbierta} alt="Evidencia del pago" />
+  </div>
+{/if}
 
 <style>
   .deuda-detalle {
@@ -194,7 +228,9 @@
   .np-evidencia {
     display: flex;
     align-items: center;
+    gap: 0.4rem;
     max-width: 140px;
+    flex-shrink: 0;
     border-radius: 8px;
     border: 1px dashed rgba(255, 255, 255, 0.22);
     background: transparent;
@@ -238,24 +274,28 @@
     justify-content: center;
     width: 22px;
     height: 22px;
-    text-decoration: none;
-    font-size: 0.9rem;
-    filter: grayscale(1);
-    opacity: 0.6;
-    transition: opacity 0.15s ease, filter 0.15s ease;
+    padding: 0;
+    border: none;
+    background: none;
+    color: rgba(255, 255, 255, 0.6);
+    opacity: 0.7;
+    transition: opacity 0.15s ease, color 0.15s ease;
   }
-  a.pago-evidencia:hover {
-    filter: none;
+  button.pago-evidencia {
+    cursor: pointer;
+  }
+  button.pago-evidencia:hover {
     opacity: 1;
+    color: #86efac;
   }
   .pago-evidencia-add {
     border: 1px dashed rgba(255, 255, 255, 0.25);
     border-radius: 6px;
     cursor: pointer;
-    filter: none;
   }
   .pago-evidencia-add:hover {
     opacity: 1;
+    color: #fff;
     border-color: rgba(134, 239, 172, 0.5);
   }
   .pago-fecha {
@@ -291,5 +331,57 @@
     color: rgba(255, 255, 255, 0.5);
     font-size: 0.9rem;
     padding: 0.5rem 0.6rem;
+  }
+
+  /* ── Modal de evidencia (ver la foto sin salir de la página) ────────────── */
+  .evidencia-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    cursor: pointer;
+  }
+  .evidencia-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 41;
+    max-width: min(90vw, 560px);
+    max-height: 85vh;
+    display: flex;
+  }
+  .evidencia-modal img {
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    object-fit: contain;
+  }
+  .evidencia-modal-close {
+    position: absolute;
+    top: -14px;
+    right: -14px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: #0d3a1f;
+    color: #fff;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .evidencia-modal-close:hover {
+    background: rgba(239, 68, 68, 0.35);
   }
 </style>
