@@ -23,6 +23,15 @@ function formatoFecha(d: Date): string {
 	return `${day}/${mes}/${anio}`;
 }
 
+// Date (UTC) -> "YYYY-MM-DD" para el <input type="date"> al editar (mismo UTC
+// que formatoFecha, por la misma razón).
+function fechaAInput(d: Date): string {
+	const y = d.getUTCFullYear();
+	const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+	const day = String(d.getUTCDate()).padStart(2, '0');
+	return `${y}-${mes}-${day}`;
+}
+
 const MAX_EVIDENCIA_BYTES = 8 * 1024 * 1024; // 8MB, alcanza sobrado para una foto de recibo
 
 // Lee un <input type="file"> del formulario y lo convierte a data URI base64
@@ -49,7 +58,13 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	const listaPagos = [...deuda.pagos]
 		.sort((a, b) => b.fecha.getTime() - a.fecha.getTime())
-		.map((p) => ({ id: p.id, cantidad: p.cantidad, fechaTexto: formatoFecha(p.fecha), evidencia: p.recibo }));
+		.map((p) => ({
+			id: p.id,
+			cantidad: p.cantidad,
+			fechaTexto: formatoFecha(p.fecha),
+			fechaISO: fechaAInput(p.fecha),
+			evidencia: p.recibo
+		}));
 
 	return {
 		deuda: { id: deuda.id, nombre: deuda.nombre, monto: deuda.monto },
@@ -81,6 +96,20 @@ export const actions: Actions = {
 		if (!Number.isInteger(id)) return fail(400, { error: 'id inválido' });
 
 		db.delete(pagos).where(eq(pagos.id, id)).run();
+		return { success: true };
+	},
+
+	// Edita la fecha y/o la cantidad de un pago ya registrado.
+	editarPago: async ({ request }) => {
+		const form = await request.formData();
+		const id = Number(form.get('id'));
+		if (!Number.isInteger(id)) return fail(400, { error: 'id inválido' });
+
+		const cantidad = Number(form.get('cantidad')) || 0;
+		if (cantidad <= 0) return fail(400, { error: 'cantidad inválida' });
+		const fecha = parseFecha(String(form.get('fecha') ?? ''));
+
+		db.update(pagos).set({ cantidad, fecha }).where(eq(pagos.id, id)).run();
 		return { success: true };
 	},
 

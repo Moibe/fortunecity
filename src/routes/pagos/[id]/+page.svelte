@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { Paperclip, Eye } from '@lucide/svelte';
+  import { Paperclip, Eye, Calendar, Pencil, Check } from '@lucide/svelte';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
@@ -32,6 +32,12 @@
   let nuevaCantidad = $state('');
   let evidenciaInput: HTMLInputElement | undefined = $state();
   let evidenciaAdjunta = $state(false);
+
+  // Edición en línea de fecha/monto de un pago ya registrado (null = ninguno).
+  let editandoFechaId = $state<number | null>(null);
+  let editandoCantidadId = $state<number | null>(null);
+  let fechaEditada = $state('');
+  let cantidadEditada = $state('');
 
   const fmt = new Intl.NumberFormat('es-MX', {
     style: 'currency',
@@ -88,7 +94,42 @@
   <ul class="pagos-lista">
     {#each data.pagos as p (p.id)}
       <li>
-        <span class="pago-fecha">{p.fechaTexto}</span>
+        <div class="pago-fecha-grupo">
+          {#if editandoFechaId === p.id}
+            <form
+              method="POST"
+              action="?/editarPago"
+              use:enhance={() => {
+                return async ({ result, update }) => {
+                  await update();
+                  if (result.type === 'success') editandoFechaId = null;
+                };
+              }}
+            >
+              <input type="hidden" name="id" value={p.id} />
+              <input type="hidden" name="cantidad" value={p.cantidad} />
+              <!-- svelte-ignore a11y_autofocus -->
+              <input class="pago-fecha-input" type="date" name="fecha" bind:value={fechaEditada} autofocus />
+              <button type="submit" class="pago-edit-confirmar" aria-label="Guardar fecha" title="Guardar fecha">
+                <Check size={13} />
+              </button>
+            </form>
+          {:else}
+            <span class="pago-fecha">{p.fechaTexto}</span>
+            <button
+              type="button"
+              class="pago-edit-btn"
+              onclick={() => {
+                editandoFechaId = p.id;
+                fechaEditada = p.fechaISO;
+              }}
+              aria-label="Editar fecha"
+              title="Editar fecha"
+            >
+              <Calendar size={13} />
+            </button>
+          {/if}
+        </div>
         <div class="pago-evidencias">
           {#if p.evidencia}
             {@const src = p.evidencia}
@@ -122,7 +163,50 @@
             </label>
           </form>
         </div>
-        <span class="pago-cantidad">{fmt.format(p.cantidad)}</span>
+        <div class="pago-cantidad-grupo">
+          {#if editandoCantidadId === p.id}
+            <form
+              method="POST"
+              action="?/editarPago"
+              use:enhance={() => {
+                return async ({ result, update }) => {
+                  await update();
+                  if (result.type === 'success') editandoCantidadId = null;
+                };
+              }}
+            >
+              <input type="hidden" name="id" value={p.id} />
+              <input type="hidden" name="fecha" value={p.fechaISO} />
+              <span class="cur">$</span>
+              <!-- svelte-ignore a11y_autofocus -->
+              <input
+                class="pago-cantidad-input"
+                type="text"
+                inputmode="decimal"
+                name="cantidad"
+                bind:value={cantidadEditada}
+                autofocus
+              />
+              <button type="submit" class="pago-edit-confirmar" aria-label="Guardar monto" title="Guardar monto">
+                <Check size={13} />
+              </button>
+            </form>
+          {:else}
+            <span class="pago-cantidad">{fmt.format(p.cantidad)}</span>
+            <button
+              type="button"
+              class="pago-edit-btn"
+              onclick={() => {
+                editandoCantidadId = p.id;
+                cantidadEditada = String(p.cantidad);
+              }}
+              aria-label="Editar monto"
+              title="Editar monto"
+            >
+              <Pencil size={13} />
+            </button>
+          {/if}
+        </div>
         <form method="POST" action="?/borrarPago" use:enhance>
           <input type="hidden" name="id" value={p.id} />
           <button type="submit" class="del" aria-label="Borrar pago" title="Borrar pago">×</button>
@@ -295,18 +379,96 @@
     gap: 0.35rem;
   }
   .pagos-lista li {
-    display: grid;
-    grid-template-columns: 1fr 50px auto 28px;
+    display: flex;
     align-items: center;
     gap: 0.75rem;
     padding: 0.5rem 0.6rem;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.03);
   }
+  .pago-fecha-grupo {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .pago-fecha-grupo form,
+  .pago-cantidad-grupo form {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .pago-cantidad-grupo {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+  .pago-edit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  .pago-edit-btn:hover {
+    color: #86efac;
+  }
+  .pago-fecha-input {
+    color-scheme: dark;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.85rem;
+    color: #fff;
+  }
+  .pago-cantidad-grupo .cur {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+  }
+  .pago-cantidad-input {
+    width: 90px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    padding: 0.2rem 0.4rem;
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    text-align: right;
+  }
+  .pago-edit-confirmar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border: 1px solid rgba(134, 239, 172, 0.4);
+    border-radius: 6px;
+    background: rgba(134, 239, 172, 0.14);
+    color: #86efac;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .pago-edit-confirmar:hover {
+    background: rgba(134, 239, 172, 0.24);
+    color: #fff;
+  }
   .pago-evidencias {
     display: flex;
     align-items: center;
     gap: 0.3rem;
+    flex-shrink: 0;
   }
   .pago-evidencia {
     display: flex;
