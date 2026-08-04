@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { Paperclip, Eye, Calendar, Pencil, Check } from '@lucide/svelte';
+  import { Paperclip, Eye, Calendar, Pencil, Check, ChevronLeft, ChevronRight } from '@lucide/svelte';
+  import { untrack } from 'svelte';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
@@ -58,7 +59,38 @@
   });
 
   const totalPagado = $derived(data.pagos.reduce((s, p) => s + p.cantidad, 0));
+
+  // Al navegar a otro deudor (flechas), esta misma instancia de componente se
+  // reutiliza -SvelteKit no la remonta solo porque cambió el [id]-, así que
+  // limpiamos a mano el estado transitorio de UI que quedaría apuntando al
+  // deudor/pago anterior (mismo patrón que en la página de Distribución al
+  // cambiar de quincena).
+  let deudaIdCargada = untrack(() => data.deuda.id);
+  $effect(() => {
+    if (data.deuda.id === deudaIdCargada) return;
+    deudaIdCargada = data.deuda.id;
+    evidenciaAbierta = null;
+    inputEsperandoConfirmacion = null;
+    nuevaFecha = hoyInput();
+    nuevaCantidad = '';
+    evidenciaAdjunta = false;
+    editandoFechaId = null;
+    editandoCantidadId = null;
+    fechaEditada = '';
+    cantidadEditada = '';
+  });
 </script>
+
+{#if data.anteriorId !== null}
+  <a class="deudor-nav deudor-nav-prev" href="/pagos/{data.anteriorId}" aria-label="Deudor anterior" title="Deudor anterior">
+    <ChevronLeft size={20} />
+  </a>
+{/if}
+{#if data.siguienteId !== null}
+  <a class="deudor-nav deudor-nav-next" href="/pagos/{data.siguienteId}" aria-label="Siguiente deudor" title="Siguiente deudor">
+    <ChevronRight size={20} />
+  </a>
+{/if}
 
 <div class="deuda-detalle">
   <a class="volver" href="/pagos">← Pagos</a>
@@ -275,6 +307,50 @@
     margin: 0 auto;
     padding: 0.5rem 0.25rem 1rem;
     color: rgba(255, 255, 255, 0.95);
+  }
+
+  /* ── Navegación en loop entre deudores (flechas fijas a los lados) ──────── */
+  .deudor-nav {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px) saturate(110%);
+    -webkit-backdrop-filter: blur(8px) saturate(110%);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  }
+  .deudor-nav:hover {
+    background: rgba(134, 239, 172, 0.16);
+    border-color: rgba(134, 239, 172, 0.4);
+    color: #fff;
+  }
+  .deudor-nav-prev {
+    left: calc(var(--sidebar-width, 240px) + 2.5rem);
+  }
+  .deudor-nav-next {
+    right: 1.5rem;
+  }
+  @media (max-width: 680px) {
+    .deudor-nav {
+      width: 36px;
+      height: 36px;
+    }
+    .deudor-nav-prev {
+      left: 0.5rem;
+    }
+    .deudor-nav-next {
+      right: 0.5rem;
+    }
   }
   .volver {
     display: inline-block;

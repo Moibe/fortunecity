@@ -66,9 +66,25 @@ export const load: PageServerLoad = async ({ params }) => {
 			evidencia: p.recibo
 		}));
 
+	// Navegación en loop entre deudores, mismo orden (alfabético) que la lista
+	// de /pagos. Con una sola deuda, anterior/siguiente quedan en null (no hay
+	// a dónde ir).
+	const todasLasDeudas = await db.query.deudas.findMany({
+		columns: { id: true },
+		orderBy: (d, { asc }) => [asc(d.nombre)]
+	});
+	const idx = todasLasDeudas.findIndex((d) => d.id === id);
+	const hayMasDeUna = todasLasDeudas.length > 1 && idx !== -1;
+	const anteriorId = hayMasDeUna
+		? todasLasDeudas[(idx - 1 + todasLasDeudas.length) % todasLasDeudas.length].id
+		: null;
+	const siguienteId = hayMasDeUna ? todasLasDeudas[(idx + 1) % todasLasDeudas.length].id : null;
+
 	return {
 		deuda: { id: deuda.id, nombre: deuda.nombre, monto: deuda.monto },
-		pagos: listaPagos
+		pagos: listaPagos,
+		anteriorId,
+		siguienteId
 	};
 };
 
