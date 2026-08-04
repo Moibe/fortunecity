@@ -213,6 +213,20 @@
     return a.localeCompare(b) * dir;
   }
 
+  // "YYYY-MM-DD" -> "DD-mmm-AA" (ej. "2026-07-31" -> "31-jul-26"), para el
+  // overlay compacto de fecha en móvil. Puro parseo de string, sin Date de por
+  // medio -cero riesgo de que alguna zona horaria la corra un día-.
+  const MESES_ABREV = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  function fechaAbreviada(iso: string): string {
+    if (!iso) return '';
+    const partes = iso.split('-');
+    if (partes.length !== 3) return '';
+    const [y, m, d] = partes;
+    const mesIdx = Number(m) - 1;
+    if (mesIdx < 0 || mesIdx > 11) return '';
+    return `${d}-${MESES_ABREV[mesIdx]}-${y.slice(-2)}`;
+  }
+
   // ── Navegar entre quincenas (mes/corte, 15 antes que 30) ─────────────────────
   type Periodo = { anio: number; mes: number; corte: number };
   function claveQuincena(anio: number, mes: number, corte: number): number {
@@ -1204,7 +1218,10 @@
               {@render nombreEntrada(entrada, `Entrada ${entradaNumeroPorId.get(entrada.id)}`, 'entrada-row-label')}
             </div>
             <div class="fecha-monto">
-              <input class="entrada-fecha" type="date" bind:value={entrada.fecha} />
+              <div class="fecha-wrap">
+                <input class="entrada-fecha" type="date" bind:value={entrada.fecha} />
+                <span class="fecha-overlay" aria-hidden="true">{fechaAbreviada(entrada.fecha)}</span>
+              </div>
               <div class="entrada-monto-cell">
                 <span class="cur">$</span>
                 <input
@@ -1463,7 +1480,10 @@
               {/if}
             </div>
             <div class="fecha-monto">
-              <input class="g-fecha" type="date" bind:value={g.fecha} />
+              <div class="fecha-wrap">
+                <input class="g-fecha" type="date" bind:value={g.fecha} />
+                <span class="fecha-overlay" aria-hidden="true">{fechaAbreviada(g.fecha)}</span>
+              </div>
               <div class="g-monto">
                 <span class="cur">$</span>
                 <input
@@ -1951,6 +1971,18 @@
     font-size: 0.82rem;
     width: 100%;
     box-sizing: border-box;
+  }
+  /* Envuelve el <input type="date"> de gasto/entrada. En escritorio es un
+     bloque normal que llena la columna igual que antes; en móvil (media query
+     más abajo) se le oculta el texto propio y se le pone encima un overlay
+     con formato abreviado ("31-jul-26"), para ahorrar espacio. */
+  .fecha-wrap {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .fecha-overlay {
+    display: none;
   }
   .entrada-nombre-cell {
     min-width: 0;
@@ -3017,10 +3049,29 @@
       grid-area: fechamonto;
       min-width: 0;
     }
-    .fecha-monto .g-fecha,
-    .fecha-monto .entrada-fecha {
+    .fecha-monto .fecha-wrap {
       width: auto;
       flex-shrink: 0;
+    }
+    /* Oculta el texto propio del input nativo (el overlay de abajo lo
+       reemplaza visualmente) y le da un ancho fijo compacto -"31-jul-26"
+       necesita mucho menos que el texto largo nativo-. El input sigue
+       siendo el que realmente recibe el tap y abre el calendario. */
+    .fecha-wrap .g-fecha,
+    .fecha-wrap .entrada-fecha {
+      width: 100px;
+      color: transparent;
+    }
+    .fecha-overlay {
+      display: flex;
+      align-items: center;
+      position: absolute;
+      inset: 0;
+      padding: 0 0.45rem;
+      pointer-events: none;
+      color: #fff;
+      font-size: 16px;
+      white-space: nowrap;
     }
     .fecha-monto .g-monto,
     .fecha-monto .entrada-monto-cell {
