@@ -8,6 +8,18 @@
   // Data URI de la evidencia que se está mostrando en el modal (null = cerrado).
   let evidenciaAbierta = $state<string | null>(null);
 
+  // Input de archivo con una foto elegida esperando confirmación para
+  // reemplazar la evidencia que ya tenía ese pago (null = sin confirmación pendiente).
+  let inputEsperandoConfirmacion = $state<HTMLInputElement | null>(null);
+  function cancelarReemplazo() {
+    if (inputEsperandoConfirmacion) inputEsperandoConfirmacion.value = '';
+    inputEsperandoConfirmacion = null;
+  }
+  function confirmarReemplazo() {
+    inputEsperandoConfirmacion?.form?.requestSubmit();
+    inputEsperandoConfirmacion = null;
+  }
+
   function hoyInput(): string {
     const hoy = new Date();
     const y = hoy.getFullYear();
@@ -99,8 +111,8 @@
                 accept="image/*"
                 hidden
                 onchange={(e) => {
-                  if (p.evidencia && !confirm('¿Reemplazar la evidencia que ya tiene este pago?')) {
-                    e.currentTarget.value = '';
+                  if (p.evidencia) {
+                    inputEsperandoConfirmacion = e.currentTarget;
                     return;
                   }
                   e.currentTarget.form?.requestSubmit();
@@ -140,6 +152,17 @@
       ×
     </button>
     <img src={evidenciaAbierta} alt="Evidencia del pago" />
+  </div>
+{/if}
+
+{#if inputEsperandoConfirmacion}
+  <button type="button" class="confirm-backdrop" onclick={cancelarReemplazo} aria-label="Cancelar"></button>
+  <div class="confirm-modal" role="alertdialog" aria-modal="true" aria-label="Confirmar reemplazo de evidencia">
+    <p>¿Reemplazar la evidencia que ya tiene este pago?</p>
+    <div class="confirm-botones">
+      <button type="button" class="confirm-cancelar" onclick={cancelarReemplazo}>Cancelar</button>
+      <button type="button" class="confirm-reemplazar" onclick={confirmarReemplazo}>Reemplazar</button>
+    </div>
   </div>
 {/if}
 
@@ -400,5 +423,71 @@
   }
   .evidencia-modal-close:hover {
     background: rgba(239, 68, 68, 0.35);
+  }
+
+  /* ── Modal de confirmación (reemplazar evidencia) ───────────────────────── */
+  .confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    cursor: pointer;
+  }
+  .confirm-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 51;
+    width: min(90vw, 340px);
+    box-sizing: border-box;
+    padding: 1.25rem;
+    background: #0d3a1f;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    color: #fff;
+  }
+  .confirm-modal p {
+    margin: 0 0 1.1rem;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  .confirm-botones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+  }
+  .confirm-cancelar,
+  .confirm-reemplazar {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .confirm-cancelar {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.75);
+  }
+  .confirm-cancelar:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+  }
+  .confirm-reemplazar {
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.16);
+    color: #ff8585;
+  }
+  .confirm-reemplazar:hover {
+    background: rgba(239, 68, 68, 0.28);
+    color: #fff;
   }
 </style>
