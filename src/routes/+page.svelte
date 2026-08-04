@@ -677,6 +677,7 @@
 
     // Limpia estado transitorio de UI que apuntaba a renglones de la quincena anterior.
     hovered = null;
+    hoveredPagado = null;
     openTipoFor = null;
     iconoPickerFor = null;
     iconoPickerObjetivo = null;
@@ -763,6 +764,13 @@
     return segs;
   });
 
+  // `hovered` puede quedar apuntando a un id que ya no existe (se desmarcó
+  // "pagado", se borró ese renglón, o se cambió de quincena sin soltar el
+  // mouse -ninguno de esos dispara mouseleave-). Sin esto, class:dim atenuaría
+  // TODA la dona (ningún segmento coincide con un id huérfano) en vez de
+  // simplemente no resaltar nada.
+  const hoveredValido = $derived(hovered !== null && segments.some((x) => x.id === hovered));
+
   // ── Orden de la tabla de Gastos por columna (clic en el encabezado) ─────────
   type GastoSortCol = 'nombre' | 'tipo' | 'fecha' | 'monto' | 'pagado';
   let gastoSortCol = $state<GastoSortCol | null>(null);
@@ -839,6 +847,12 @@
     }
     return segs;
   });
+
+  // Mismo motivo que `hoveredValido`: evita atenuar toda la dona de Pagado si
+  // hoveredPagado quedó apuntando a un id que ya no está pagado / ya no existe.
+  const hoveredPagadoValido = $derived(
+    hoveredPagado !== null && segmentsPagado.some((x) => x.id === hoveredPagado)
+  );
 
   // Mismo criterio que `centro`: el centro siempre muestra "Pagado", el hover
   // solo ilumina el segmento.
@@ -1548,9 +1562,17 @@
                 stroke-dasharray="{Math.max(s.len - (segments.length > 1 ? GAP : 0), 0.001)} {C}"
                 stroke-dashoffset={-s.offset}
                 class="seg"
-                class:dim={hovered !== null && hovered !== s.id}
-                onmouseenter={() => (hovered = s.id)}
-                onmouseleave={() => (hovered = null)}
+                class:dim={hoveredValido && hovered !== s.id}
+                onmouseenter={() => {
+                  hovered = s.id;
+                  // También en la dona de Pagado, si este segmento (no "Restante")
+                  // tiene equivalente ahí (está pagado).
+                  hoveredPagado = s.id !== null && segmentsPagado.some((x) => x.id === s.id) ? s.id : null;
+                }}
+                onmouseleave={() => {
+                  hovered = null;
+                  hoveredPagado = null;
+                }}
               >
                 <title>{s.nombre}: {fmt.format(s.monto)} ({pct(s.monto).toFixed(1)}%)</title>
               </circle>
@@ -1607,9 +1629,18 @@
                   stroke-dasharray="{Math.max(s.len - (segmentsPagado.length > 1 ? GAP : 0), 0.001)} {C}"
                   stroke-dashoffset={-s.offset}
                   class="seg"
-                  class:dim={hoveredPagado !== null && hoveredPagado !== s.id}
-                  onmouseenter={() => (hoveredPagado = s.id)}
-                  onmouseleave={() => (hoveredPagado = null)}
+                  class:dim={hoveredPagadoValido && hoveredPagado !== s.id}
+                  onmouseenter={() => {
+                    hoveredPagado = s.id;
+                    // También en la dona principal, si este segmento no es
+                    // "Sin pagar" (id -1) - cualquier gasto pagado ya está en
+                    // `segments` también, así que siempre tiene equivalente ahí.
+                    hovered = s.id !== -1 ? s.id : null;
+                  }}
+                  onmouseleave={() => {
+                    hoveredPagado = null;
+                    hovered = null;
+                  }}
                 >
                   <title>{s.nombre}: {fmt.format(s.monto)} ({pct(s.monto).toFixed(1)}%)</title>
                 </circle>
