@@ -1775,7 +1775,7 @@
   .q-nav-next {
     right: 1.5rem;
   }
-  @media (max-width: 680px) {
+  @media (max-width: 680px), (max-height: 500px) {
     .q-nav {
       width: 36px;
       height: 36px;
@@ -2920,9 +2920,10 @@
     text-align: right;
   }
 
-  /* ── Móvil (≤680px): la tabla de una línea no cabe; cada renglón se vuelve
-     una tarjetita de 2-3 líneas y los encabezados, chips de orden. ───────── */
-  @media (max-width: 680px) {
+  /* ── Móvil (≤680px, o celular en landscape con alto ≤500px): la tabla de una
+     línea no cabe; cada renglón se vuelve una tarjetita de 2-3 líneas y los
+     encabezados, chips de orden. ────────────────────────────────────────── */
+  @media (max-width: 680px), (max-height: 500px) {
     .capture,
     .chart {
       padding: 1rem 0.8rem;

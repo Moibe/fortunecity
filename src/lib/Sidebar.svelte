@@ -241,8 +241,9 @@
   }
 
   /* ── Móvil: la barra deja de empujar el contenido y se vuelve un cajón que
-     se superpone. Arranca fuera de pantalla; `.open` lo desliza a la vista. ─ */
-  @media (max-width: 680px) {
+     se superpone. Arranca fuera de pantalla; `.open` lo desliza a la vista.
+     También aplica en landscape de celular (alto chico). ──────────────── */
+  @media (max-width: 680px), (max-height: 500px) {
     .sidebar {
       z-index: 30;
       min-width: 0;

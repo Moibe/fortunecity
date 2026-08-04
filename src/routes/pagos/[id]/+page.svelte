@@ -340,7 +340,7 @@
   .deudor-nav-next {
     right: 1.5rem;
   }
-  @media (max-width: 680px) {
+  @media (max-width: 680px), (max-height: 500px) {
     .deudor-nav {
       width: 36px;
       height: 36px;

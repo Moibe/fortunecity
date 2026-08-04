@@ -107,8 +107,9 @@
     filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.28));
   }
 
-  /* En pantallas chicas apretamos el padding y mostramos la hamburguesa. */
-  @media (max-width: 680px) {
+  /* En pantallas chicas (o celular en landscape, alto chico) apretamos el
+     padding y mostramos la hamburguesa. */
+  @media (max-width: 680px), (max-height: 500px) {
     .topnav {
       padding: 0 0.6rem;
     }

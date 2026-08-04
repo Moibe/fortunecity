@@ -14,8 +14,10 @@
 
   // Detecta móvil para ramificar el comportamiento de la hamburguesa. Al cruzar
   // el breakpoint cerramos el cajón y reseteamos el repliegue de escritorio.
+  // También cuenta como "móvil" un celular en horizontal (ancho grande pero
+  // alto chico, ej. iPhone acostado: ~926x428) - de ahí el OR con max-height.
   $effect(() => {
-    const mq = window.matchMedia('(max-width: 680px)');
+    const mq = window.matchMedia('(max-width: 680px), (max-height: 500px)');
     const apply = () => {
       isMobile = mq.matches;
       mobileOpen = false;
@@ -129,8 +131,9 @@
   }
 
   /* En móvil el sidebar es un cajón superpuesto: el contenido siempre va a lo
-     ancho, sin importar si el cajón está abierto o cerrado. */
-  @media (max-width: 680px) {
+     ancho, sin importar si el cajón está abierto o cerrado. También aplica en
+     landscape de celular (alto chico), no solo ancho chico. */
+  @media (max-width: 680px), (max-height: 500px) {
     main,
     main.collapsed {
       left: 1rem;
