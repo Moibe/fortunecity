@@ -20,6 +20,18 @@
     inputEsperandoConfirmacion = null;
   }
 
+  // El input type=date apenas se monta (justo cuando se activa el modo
+  // edición, con el clic en el calendario) abre el selector nativo de una vez,
+  // para no necesitar un segundo clic sobre el input.
+  function autoAbrirCalendario(node: HTMLInputElement) {
+    try {
+      node.showPicker?.();
+    } catch {
+      // Si el navegador lo rechaza (p. ej. sin "user activation"), no pasa
+      // nada: el usuario lo abre con un clic normal sobre el input.
+    }
+  }
+
   function hoyInput(): string {
     const hoy = new Date();
     const y = hoy.getFullYear();
@@ -109,7 +121,14 @@
               <input type="hidden" name="id" value={p.id} />
               <input type="hidden" name="cantidad" value={p.cantidad} />
               <!-- svelte-ignore a11y_autofocus -->
-              <input class="pago-fecha-input" type="date" name="fecha" bind:value={fechaEditada} autofocus />
+              <input
+                class="pago-fecha-input"
+                type="date"
+                name="fecha"
+                bind:value={fechaEditada}
+                autofocus
+                use:autoAbrirCalendario
+              />
               <button type="submit" class="pago-edit-confirmar" aria-label="Guardar fecha" title="Guardar fecha">
                 <Check size={13} />
               </button>
