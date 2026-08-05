@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { Paperclip, Eye, Calendar, Pencil, Check, ChevronLeft, ChevronRight } from '@lucide/svelte';
+  import { Paperclip, Eye, Calendar, Pencil, Check, ChevronLeft, ChevronRight, Trash2 } from '@lucide/svelte';
   import { untrack } from 'svelte';
   import type { PageData } from './$types';
 
@@ -19,6 +19,16 @@
   function confirmarReemplazo() {
     inputEsperandoConfirmacion?.form?.requestSubmit();
     inputEsperandoConfirmacion = null;
+  }
+
+  // Formulario de "borrar pago" esperando confirmación (null = sin confirmación pendiente).
+  let borrarPendiente = $state<HTMLFormElement | null>(null);
+  function cancelarBorrado() {
+    borrarPendiente = null;
+  }
+  function confirmarBorrado() {
+    borrarPendiente?.requestSubmit();
+    borrarPendiente = null;
   }
 
   // El input type=date apenas se monta (justo cuando se activa el modo
@@ -71,6 +81,7 @@
     deudaIdCargada = data.deuda.id;
     evidenciaAbierta = null;
     inputEsperandoConfirmacion = null;
+    borrarPendiente = null;
     nuevaFecha = hoyInput();
     nuevaCantidad = '';
     evidenciaAdjunta = false;
@@ -262,7 +273,15 @@
         {/if}
         <form method="POST" action="?/borrarPago" use:enhance>
           <input type="hidden" name="id" value={p.id} />
-          <button type="submit" class="del" aria-label="Borrar pago" title="Borrar pago">×</button>
+          <button
+            type="button"
+            class="del"
+            onclick={(e) => (borrarPendiente = e.currentTarget.form)}
+            aria-label="Borrar pago"
+            title="Borrar pago"
+          >
+            <Trash2 size={14} />
+          </button>
         </form>
       </li>
     {/each}
@@ -310,7 +329,18 @@
     <p>¿Reemplazar la evidencia que ya tiene este pago?</p>
     <div class="confirm-botones">
       <button type="button" class="confirm-cancelar" onclick={cancelarReemplazo}>Cancelar</button>
-      <button type="button" class="confirm-reemplazar" onclick={confirmarReemplazo}>Reemplazar</button>
+      <button type="button" class="confirm-peligro" onclick={confirmarReemplazo}>Reemplazar</button>
+    </div>
+  </div>
+{/if}
+
+{#if borrarPendiente}
+  <button type="button" class="confirm-backdrop" onclick={cancelarBorrado} aria-label="Cancelar"></button>
+  <div class="confirm-modal" role="alertdialog" aria-modal="true" aria-label="Confirmar borrado de pago">
+    <p>¿Borrar este pago? Esta acción no se puede deshacer.</p>
+    <div class="confirm-botones">
+      <button type="button" class="confirm-cancelar" onclick={cancelarBorrado}>Cancelar</button>
+      <button type="button" class="confirm-peligro" onclick={confirmarBorrado}>Borrar</button>
     </div>
   </div>
 {/if}
@@ -717,7 +747,7 @@
     background: rgba(239, 68, 68, 0.35);
   }
 
-  /* ── Modal de confirmación (reemplazar evidencia) ───────────────────────── */
+  /* ── Modal de confirmación (reemplazar evidencia / borrar pago) ─────────── */
   .confirm-backdrop {
     position: fixed;
     inset: 0;
@@ -756,7 +786,7 @@
     gap: 0.6rem;
   }
   .confirm-cancelar,
-  .confirm-reemplazar {
+  .confirm-peligro {
     padding: 0.5rem 1rem;
     border-radius: 8px;
     font: inherit;
@@ -773,12 +803,12 @@
     background: rgba(255, 255, 255, 0.06);
     color: #fff;
   }
-  .confirm-reemplazar {
+  .confirm-peligro {
     border: 1px solid rgba(239, 68, 68, 0.4);
     background: rgba(239, 68, 68, 0.16);
     color: #ff8585;
   }
-  .confirm-reemplazar:hover {
+  .confirm-peligro:hover {
     background: rgba(239, 68, 68, 0.28);
     color: #fff;
   }
