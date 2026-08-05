@@ -268,6 +268,11 @@
     {/each}
     {#if data.pagos.length === 0}
       <li class="empty">Todavía no hay pagos registrados.</li>
+    {:else}
+      <li class="pagos-total">
+        <span>Total</span>
+        <span class="pagos-total-monto">{fmt.format(totalPagado)}</span>
+      </li>
     {/if}
   </ul>
 </div>
@@ -630,6 +635,18 @@
     color: rgba(255, 255, 255, 0.5);
     font-size: 0.9rem;
     padding: 0.5rem 0.6rem;
+  }
+  .pagos-total {
+    justify-content: space-between;
+    margin-top: 0.15rem;
+    padding: 0.55rem 0.6rem;
+    background: rgba(255, 255, 255, 0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    font-weight: 600;
+  }
+  .pagos-total-monto {
+    color: #86efac;
+    font-variant-numeric: tabular-nums;
   }
 
   /* ── Modal de evidencia (ver la foto sin salir de la página) ────────────── */
