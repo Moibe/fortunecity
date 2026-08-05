@@ -182,18 +182,6 @@
           {/if}
         </div>
         <div class="pago-evidencias">
-          {#if p.evidencia}
-            {@const src = p.evidencia}
-            <button
-              type="button"
-              class="pago-evidencia"
-              onclick={() => (evidenciaAbierta = src)}
-              aria-label="Ver evidencia"
-              title="Ver evidencia"
-            >
-              <Eye size={14} />
-            </button>
-          {/if}
           <form method="POST" action="?/agregarEvidencia" enctype="multipart/form-data" use:enhance>
             <input type="hidden" name="id" value={p.id} />
             <label class="pago-evidencia pago-evidencia-add" title={p.evidencia ? 'Cambiar evidencia' : 'Agregar evidencia'}>
@@ -213,6 +201,20 @@
               <Paperclip size={13} />
             </label>
           </form>
+          {#if editandoCantidadId !== p.id}
+            <button
+              type="button"
+              class="pago-edit-btn"
+              onclick={() => {
+                editandoCantidadId = p.id;
+                cantidadEditada = String(p.cantidad);
+              }}
+              aria-label="Editar monto"
+              title="Editar monto"
+            >
+              <Pencil size={13} />
+            </button>
+          {/if}
         </div>
         <div class="pago-cantidad-grupo">
           {#if editandoCantidadId === p.id}
@@ -244,20 +246,20 @@
             </form>
           {:else}
             <span class="pago-cantidad">{fmt.format(p.cantidad)}</span>
-            <button
-              type="button"
-              class="pago-edit-btn"
-              onclick={() => {
-                editandoCantidadId = p.id;
-                cantidadEditada = String(p.cantidad);
-              }}
-              aria-label="Editar monto"
-              title="Editar monto"
-            >
-              <Pencil size={13} />
-            </button>
           {/if}
         </div>
+        {#if p.evidencia}
+          {@const src = p.evidencia}
+          <button
+            type="button"
+            class="pago-evidencia"
+            onclick={() => (evidenciaAbierta = src)}
+            aria-label="Ver evidencia"
+            title="Ver evidencia"
+          >
+            <Eye size={14} />
+          </button>
+        {/if}
         <form method="POST" action="?/borrarPago" use:enhance>
           <input type="hidden" name="id" value={p.id} />
           <button type="submit" class="del" aria-label="Borrar pago" title="Borrar pago">×</button>
