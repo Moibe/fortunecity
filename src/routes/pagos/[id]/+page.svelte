@@ -270,8 +270,15 @@
       <li class="empty">Todavía no hay pagos registrados.</li>
     {:else}
       <li class="pagos-total">
-        <span>Total</span>
-        <span class="pagos-total-monto">{fmt.format(totalPagado)}</span>
+        <div class="pago-fecha-grupo">
+          <span class="pago-fecha">Total</span>
+        </div>
+        <div class="pago-evidencias"></div>
+        <div class="pago-cantidad-grupo">
+          <span class="pago-cantidad pagos-total-monto">{fmt.format(totalPagado)}</span>
+        </div>
+        <div class="pago-evidencia" aria-hidden="true"></div>
+        <div class="pagos-total-del-espacio" aria-hidden="true"></div>
       </li>
     {/if}
   </ul>
@@ -637,16 +644,25 @@
     padding: 0.5rem 0.6rem;
   }
   .pagos-total {
-    justify-content: space-between;
     margin-top: 0.15rem;
     padding: 0.55rem 0.6rem;
     background: rgba(255, 255, 255, 0.06);
     border-top: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  .pagos-total .pago-fecha {
     font-weight: 600;
   }
+  .pagos-total .pago-evidencia {
+    visibility: hidden;
+  }
+  .pagos-total-del-espacio {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
   .pagos-total-monto {
+    font-weight: 700;
     color: #86efac;
-    font-variant-numeric: tabular-nums;
   }
 
   /* ── Modal de evidencia (ver la foto sin salir de la página) ────────────── */
