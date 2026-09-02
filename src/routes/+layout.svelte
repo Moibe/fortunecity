@@ -125,6 +125,13 @@
     overflow: hidden;
     transition: left 0.22s ease-out;
     left: calc(var(--sidebar-width, 240px) + 2rem);
+    /* El backdrop-filter convierte a main en el "containing block" de sus
+       modales position:fixed (evidencia, confirmaciones, etc.), atrapándolos
+       en su propio stacking context. Sin esto, esos modales -aunque tengan
+       z-index alto- pintarían por DEBAJO del topnav (z-index: 9), ya que
+       main no tenía z-index propio. Empatamos con el topnav: al ser main
+       posterior en el DOM, gana el empate y sus modales quedan por encima. */
+    z-index: 9;
   }
   main.collapsed {
     left: 2rem;
