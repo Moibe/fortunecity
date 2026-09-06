@@ -73,7 +73,11 @@
   function autoAltura(node: HTMLTextAreaElement) {
     function ajustar() {
       node.style.height = 'auto';
-      node.style.height = `${node.scrollHeight}px`;
+      // box-sizing: border-box resta el borde del alto que se asigna, pero
+      // scrollHeight no lo incluye -- sin sumarlo, el contenido queda 2px más
+      // alto que la caja y aparece el scrollbar aunque quepa "casi todo".
+      const borde = node.offsetHeight - node.clientHeight;
+      node.style.height = `${node.scrollHeight + borde}px`;
     }
     ajustar(); // por si ya trae texto largo al abrir
     node.addEventListener('input', ajustar);
