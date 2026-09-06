@@ -489,6 +489,82 @@
     }
   }
 
+  // ── Proyectos frecuentes (plantillas nombre + tipo + monto) ─────────────────
+  // Mismo mecanismo que las entradas frecuentes de arriba, pero para renglones
+  // de gasto: un frecuente guarda nombre + tipo + monto (no fecha/notas/pagado,
+  // que son propios de cada instancia) para repetir un gasto recurrente con
+  // un clic en la siguiente quincena.
+  type GastoFrecuente = { id: number; nombre: string; tipo: string; monto: number };
+  let gastosFrecuentes = $state<GastoFrecuente[]>(untrack(() => data.gastosFrecuentes ?? []));
+  let gastosFrecuentesAbiertos = $state(false);
+  let guardandoGastoFrecuente = $state<number | null>(null); // id del gasto en vuelo
+
+  function yaEsGastoFrecuente(nombre: string, tipo: string, monto: number) {
+    const n = nombre.trim().toLowerCase();
+    const t = tipo.trim().toLowerCase();
+    return gastosFrecuentes.some(
+      (f) => f.nombre.toLowerCase() === n && f.tipo.toLowerCase() === t && f.monto === monto
+    );
+  }
+
+  async function guardarComoGastoFrecuente(gasto: Gasto) {
+    const nombre = gasto.nombre.trim();
+    const tipo = gasto.tipo.trim();
+    const monto = Number(gasto.monto) || 0;
+    if (!nombre || guardandoGastoFrecuente !== null || yaEsGastoFrecuente(nombre, tipo, monto)) return;
+    guardandoGastoFrecuente = gasto.id;
+    try {
+      const body = new FormData();
+      body.set('nombre', nombre);
+      body.set('tipo', tipo);
+      body.set('monto', String(monto));
+      const response = await fetch('?/agregarGastoFrecuente', { method: 'POST', body });
+      const result = deserialize(await response.text());
+      if (result.type === 'success' && result.data) {
+        const d = result.data as { id?: number };
+        if (d.id && !gastosFrecuentes.some((f) => f.id === d.id)) {
+          gastosFrecuentes = [{ id: d.id, nombre, tipo, monto }, ...gastosFrecuentes];
+        }
+      }
+    } catch (e) {
+      console.error('No se pudo guardar el proyecto como frecuente', e);
+    } finally {
+      guardandoGastoFrecuente = null;
+    }
+  }
+
+  // Mete una copia del frecuente como Proyecto nuevo de esta quincena, con la
+  // fecha de hoy y sin pagar -- a partir de ahí es un renglón normal y editable.
+  function usarGastoFrecuente(f: GastoFrecuente) {
+    const id = nextId++;
+    gastos.unshift({
+      id,
+      nombre: f.nombre,
+      tipo: f.tipo,
+      monto: f.monto,
+      fecha: hoyInput(),
+      notas: '',
+      pagado: false,
+      deudaId: null
+    });
+    nuevoGastoId = id; // se fuerza arriba de la tabla sin importar el orden activo
+  }
+
+  async function borrarGastoFrecuente(f: GastoFrecuente) {
+    const anteriores = gastosFrecuentes;
+    gastosFrecuentes = gastosFrecuentes.filter((x) => x.id !== f.id);
+    try {
+      const body = new FormData();
+      body.set('id', String(f.id));
+      const response = await fetch('?/borrarGastoFrecuente', { method: 'POST', body });
+      const result = deserialize(await response.text());
+      if (result.type !== 'success') gastosFrecuentes = anteriores;
+    } catch (e) {
+      console.error('No se pudo borrar el proyecto frecuente', e);
+      gastosFrecuentes = anteriores;
+    }
+  }
+
   // Borra un nombre de Entrada del catálogo (no afecta a las entradas ya guardadas).
   async function borrarNombreEntradaDelCatalogo(nombre: string) {
     try {
@@ -1388,6 +1464,47 @@
       <div class="gastos">
         <button class="add" type="button" onclick={agregar}>+ Agregar proyecto</button>
 
+        {#if gastosFrecuentes.length > 0}
+          <div class="frecuentes-wrap">
+            <button
+              type="button"
+              class="frecuentes-toggle"
+              onclick={() => (gastosFrecuentesAbiertos = !gastosFrecuentesAbiertos)}
+              aria-expanded={gastosFrecuentesAbiertos}
+            >
+              <svg class="frecuentes-estrella" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.5l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9Z" /></svg>
+              Tus frecuentes
+              <span class="frecuentes-conteo">{gastosFrecuentes.length}</span>
+              <svg class="frecuentes-chevron" class:abierto={gastosFrecuentesAbiertos} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            {#if gastosFrecuentesAbiertos}
+              <div class="frecuentes-list">
+                {#each gastosFrecuentes as f (f.id)}
+                  <span class="frecuente-chip">
+                    <button
+                      type="button"
+                      class="frecuente-btn"
+                      onclick={() => usarGastoFrecuente(f)}
+                      title="Agregar «{f.nombre}» a esta quincena"
+                    >
+                      {f.nombre}{f.tipo ? ` · ${f.tipo}` : ''} · {fmt.format(f.monto)}
+                    </button>
+                    <button
+                      type="button"
+                      class="frecuente-borrar"
+                      onclick={() => borrarGastoFrecuente(f)}
+                      aria-label="Quitar «{f.nombre}» de frecuentes"
+                      title="Quitar de frecuentes"
+                    >
+                      ×
+                    </button>
+                  </span>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
+
         <div class="gastos-head">
           <button
             type="button"
@@ -1700,6 +1817,22 @@
                 <Circle size={18} />
               {/if}
             </button>
+            {#if g.nombre.trim() !== ''}
+              {@const esGastoFrec = yaEsGastoFrecuente(g.nombre, g.tipo, Number(g.monto) || 0)}
+              <button
+                type="button"
+                class="entrada-frec-btn"
+                class:activo={esGastoFrec}
+                onclick={() => guardarComoGastoFrecuente(g)}
+                disabled={esGastoFrec || guardandoGastoFrecuente !== null}
+                aria-label={esGastoFrec ? 'Ya está en frecuentes' : 'Guardar como frecuente'}
+                title={esGastoFrec ? 'Ya está en tus frecuentes' : 'Guardar como frecuente para repetirlo en otras quincenas'}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill={esGastoFrec ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9Z" /></svg>
+              </button>
+            {:else}
+              <span class="entrada-frec-hueco" aria-hidden="true"></span>
+            {/if}
             <button class="del" type="button" onclick={() => quitar(g.id)} aria-label="Quitar proyecto">×</button>
           </div>
         {/each}
@@ -2451,7 +2584,9 @@
   }
   .gastos-head {
     display: grid;
-    grid-template-columns: 18px 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 28px;
+    /* Penúltima columna: la estrellita de "guardar como frecuente" (mismo
+       hueco que el de .entradas-head, sin encabezado propio). */
+    grid-template-columns: 18px 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 22px 28px;
     gap: 0.5rem;
     padding: 0 0.2rem 0.4rem;
     font-size: 0.72rem;
@@ -2520,7 +2655,7 @@
   }
   .gasto-row {
     display: grid;
-    grid-template-columns: 18px 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 28px;
+    grid-template-columns: 18px 24px minmax(160px, 260px) 190px 140px 95px 44px 36px 22px 28px;
     gap: 0.5rem;
     align-items: center;
     padding: 0.22rem 0.2rem;
@@ -3290,15 +3425,15 @@
     }
 
     /* Renglón de gasto: 3 líneas.
-       1) handle · color · nombre · notas · pagado · quitar
+       1) handle · color · nombre · notas · pagado · ★ · quitar
        2) tipo (ancho completo → su dropdown también)
        3) fecha + monto (juntos, compactos, sin estirarse) */
     .gasto-row {
-      grid-template-columns: 18px 16px minmax(0, 1fr) 34px 30px 26px;
+      grid-template-columns: 18px 16px minmax(0, 1fr) 34px 30px 22px 26px;
       grid-template-areas:
-        'handle swatch nombre notas pagado del'
-        'tipo   tipo   tipo   tipo  tipo   tipo'
-        'fechamonto fechamonto fechamonto fechamonto fechamonto fechamonto';
+        'handle swatch nombre notas pagado frec del'
+        'tipo   tipo   tipo   tipo  tipo   tipo tipo'
+        'fechamonto fechamonto fechamonto fechamonto fechamonto fechamonto fechamonto';
       gap: 0.35rem 0.4rem;
       padding: 0.55rem 0.1rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.07);

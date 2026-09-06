@@ -135,6 +135,22 @@ export const entradasFrecuentes = sqliteTable('entradas_frecuentes', {
 		.$defaultFn(() => new Date())
 });
 
+// ── Renglones frecuentes ──────────────────────────────────────────────────────
+// Mismo mecanismo que entradasFrecuentes, pero para Proyectos (renglones de la
+// distribución): guarda nombre + tipo + monto para repetir un gasto recurrente
+// (ej. "Telcel · Recurrente · $999") con un clic en la siguiente quincena.
+// No guarda fecha/notas/pagado/deudaId: esos son propios de cada instancia,
+// no de la plantilla.
+export const renglonesFrecuentes = sqliteTable('renglones_frecuentes', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	nombre: text('nombre').notNull(),
+	tipo: text('tipo').notNull().default(''),
+	monto: real('monto').notNull().default(0),
+	creado: integer('creado', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
 // ── Relaciones (query API de Drizzle) ────────────────────────────────────────
 export const deudasRelations = relations(deudas, ({ many }) => ({
 	pagos: many(pagos)
@@ -189,3 +205,5 @@ export type EntradaPreset = typeof entradasPreset.$inferSelect;
 export type NuevaEntradaPreset = typeof entradasPreset.$inferInsert;
 export type EntradaFrecuente = typeof entradasFrecuentes.$inferSelect;
 export type NuevaEntradaFrecuente = typeof entradasFrecuentes.$inferInsert;
+export type RenglonFrecuente = typeof renglonesFrecuentes.$inferSelect;
+export type NuevoRenglonFrecuente = typeof renglonesFrecuentes.$inferInsert;

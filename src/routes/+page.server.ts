@@ -5,7 +5,8 @@ import {
 	entradas,
 	tiposPreset,
 	entradasPreset,
-	entradasFrecuentes
+	entradasFrecuentes,
+	renglonesFrecuentes
 } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
@@ -62,6 +63,9 @@ export const load: PageServerLoad = async ({ url }) => {
 	const frecuentes = await db.query.entradasFrecuentes.findMany({
 		orderBy: (f, { desc }) => [desc(f.id)]
 	});
+	const gastosFrecuentesRows = await db.query.renglonesFrecuentes.findMany({
+		orderBy: (f, { desc }) => [desc(f.id)]
+	});
 
 	return {
 		quincena: quincena ?? null,
@@ -77,7 +81,13 @@ export const load: PageServerLoad = async ({ url }) => {
 				: null,
 		tiposPreset: tipos.map((t) => ({ nombre: t.nombre, icono: t.icono })),
 		entradaNombresPreset: nombresEntrada.map((e) => e.nombre),
-		entradasFrecuentes: frecuentes.map((f) => ({ id: f.id, nombre: f.nombre, monto: f.monto }))
+		entradasFrecuentes: frecuentes.map((f) => ({ id: f.id, nombre: f.nombre, monto: f.monto })),
+		gastosFrecuentes: gastosFrecuentesRows.map((f) => ({
+			id: f.id,
+			nombre: f.nombre,
+			tipo: f.tipo,
+			monto: f.monto
+		}))
 	};
 };
 
@@ -308,6 +318,41 @@ export const actions: Actions = {
 		if (!id) return fail(400, { error: 'id inválido' });
 
 		db.delete(entradasFrecuentes).where(eq(entradasFrecuentes.id, id)).run();
+		return { success: true, id };
+	},
+
+	// Guarda un Proyecto (nombre + tipo + monto) como plantilla frecuente, para
+	// poder repetirlo en las siguientes quincenas con un clic.
+	agregarGastoFrecuente: async ({ request }) => {
+		const form = await request.formData();
+		const nombre = String(form.get('nombre') ?? '').trim();
+		const tipo = String(form.get('tipo') ?? '').trim();
+		const monto = Number(form.get('monto') ?? 0) || 0;
+		if (!nombre) return fail(400, { error: 'nombre vacío' });
+
+		// Dedupe por nombre + tipo + monto: el mismo proyecto con otro monto (o
+		// sin tipo) es una plantilla legítimamente distinta.
+		const existentes = await db.query.renglonesFrecuentes.findMany();
+		const yaExiste = existentes.find(
+			(f) =>
+				f.nombre.toLowerCase() === nombre.toLowerCase() &&
+				f.tipo.toLowerCase() === tipo.toLowerCase() &&
+				f.monto === monto
+		);
+		if (yaExiste) return { success: true, id: yaExiste.id, nombre, tipo, monto };
+
+		const res = db.insert(renglonesFrecuentes).values({ nombre, tipo, monto }).run();
+		return { success: true, id: Number(res.lastInsertRowid), nombre, tipo, monto };
+	},
+
+	// Quita una plantilla frecuente de Proyecto (no toca los renglones ya
+	// guardados en las quincenas).
+	borrarGastoFrecuente: async ({ request }) => {
+		const form = await request.formData();
+		const id = Number(form.get('id') ?? 0);
+		if (!id) return fail(400, { error: 'id inválido' });
+
+		db.delete(renglonesFrecuentes).where(eq(renglonesFrecuentes.id, id)).run();
 		return { success: true, id };
 	}
 };
