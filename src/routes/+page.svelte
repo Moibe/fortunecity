@@ -126,7 +126,8 @@
     Shirt,
     Fuel,
     Music,
-    GripVertical
+    GripVertical,
+    Save
   } from '@lucide/svelte';
   import { deserialize } from '$app/forms';
   import { goto } from '$app/navigation';
@@ -502,6 +503,20 @@
   // id del renglón cuyo panel de Notas está desplegado (null = ninguno, replegadas por default).
   let openNotasFor = $state<number | null>(null);
 
+  // id del renglón cuya nota acaba de guardarse (para el ✓ de confirmación).
+  // La nota ya se guardaba sola con el autoguardado; el diskette existe para
+  // que eso se VEA -sin él la escritura se siente como que no persiste nada-.
+  let notaGuardadaFlash = $state<number | null>(null);
+  async function guardarNota(id: number) {
+    await guardar(); // fuerza el guardado ya, sin esperar los 800ms del debounce
+    notaGuardadaFlash = id;
+    setTimeout(() => {
+      if (notaGuardadaFlash !== id) return; // ya se guardó otra nota mientras tanto
+      notaGuardadaFlash = null;
+      if (openNotasFor === id) openNotasFor = null; // confirmar y cerrar = "listo"
+    }, 900);
+  }
+
   // id de la entrada cuyo nombre se está editando (null = ninguna, fijo con lapicito por default).
   let editandoNombreFor = $state<number | null>(null);
 
@@ -767,6 +782,7 @@
     openEntradaDropdownFor = null;
     editandoNombreFor = null;
     openNotasFor = null;
+    notaGuardadaFlash = null;
     editandoQuincena = false;
     nuevoGastoId = null;
     dragGastoId = null;
@@ -1635,7 +1651,24 @@
                 <div class="notas-panel">
                   <div class="notas-panel-head">
                     <span>Notas</span>
-                    <button type="button" class="notas-close" onclick={() => (openNotasFor = null)} aria-label="Cerrar notas">×</button>
+                    <div class="notas-panel-acciones">
+                      {#if notaGuardadaFlash === g.id}
+                        <span class="notas-guardado" aria-live="polite">
+                          <Check size={13} /> Guardado
+                        </span>
+                      {:else}
+                        <button
+                          type="button"
+                          class="notas-guardar"
+                          onclick={() => guardarNota(g.id)}
+                          aria-label="Guardar nota"
+                          title="Guardar nota"
+                        >
+                          <Save size={12} /> Guardar
+                        </button>
+                      {/if}
+                      <button type="button" class="notas-close" onclick={() => (openNotasFor = null)} aria-label="Cerrar notas">×</button>
+                    </div>
                   </div>
                   <!-- svelte-ignore a11y_autofocus -->
                   <textarea
@@ -2892,6 +2925,48 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: rgba(255, 255, 255, 0.5);
+  }
+  .notas-panel-acciones {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  /* Se ve como botón de verdad (no un ícono fantasma): el punto de este
+     control es justamente dar la sensación de que la nota SÍ se guarda. */
+  .notas-guardar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.22rem;
+    height: 20px;
+    padding: 0 0.4rem;
+    color: #86efac;
+    background: rgba(134, 239, 172, 0.16);
+    border: 1px solid rgba(134, 239, 172, 0.42);
+    border-radius: 6px;
+    font: inherit;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+  .notas-guardar:hover {
+    color: #fff;
+    background: rgba(134, 239, 172, 0.3);
+  }
+  /* Reemplaza al diskette por ~1s tras guardar: la confirmación ocupa su lugar
+     en vez de sumar un elemento (el encabezado no se mueve). */
+  .notas-guardado {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: #86efac;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
   }
   .notas-close {
     width: 18px;
