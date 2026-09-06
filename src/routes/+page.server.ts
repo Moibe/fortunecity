@@ -1,5 +1,12 @@
 import { db } from '$lib/server/db';
-import { quincenas, renglones, entradas, tiposPreset, entradasPreset } from '$lib/server/db/schema';
+import {
+	quincenas,
+	renglones,
+	entradas,
+	tiposPreset,
+	entradasPreset,
+	entradasFrecuentes
+} from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -50,6 +57,11 @@ export const load: PageServerLoad = async ({ url }) => {
 	const nombresEntrada = await db.query.entradasPreset.findMany({
 		orderBy: (e, { asc }) => [asc(e.nombre)]
 	});
+	// Más recientes primero: lo último que marcaste como frecuente es lo que más
+	// probablemente quieras repetir ahora.
+	const frecuentes = await db.query.entradasFrecuentes.findMany({
+		orderBy: (f, { desc }) => [desc(f.id)]
+	});
 
 	return {
 		quincena: quincena ?? null,
@@ -64,7 +76,8 @@ export const load: PageServerLoad = async ({ url }) => {
 					}
 				: null,
 		tiposPreset: tipos.map((t) => ({ nombre: t.nombre, icono: t.icono })),
-		entradaNombresPreset: nombresEntrada.map((e) => e.nombre)
+		entradaNombresPreset: nombresEntrada.map((e) => e.nombre),
+		entradasFrecuentes: frecuentes.map((f) => ({ id: f.id, nombre: f.nombre, monto: f.monto }))
 	};
 };
 
@@ -264,5 +277,37 @@ export const actions: Actions = {
 		}
 
 		return { success: true, nombre };
+	},
+
+	// Guarda una entrada (nombre + monto) como plantilla frecuente, para poder
+	// repetirla en las siguientes quincenas con un clic.
+	agregarEntradaFrecuente: async ({ request }) => {
+		const form = await request.formData();
+		const nombre = String(form.get('nombre') ?? '').trim();
+		const monto = Number(form.get('monto') ?? 0) || 0;
+		if (!nombre) return fail(400, { error: 'nombre vacío' });
+
+		// La dedupe es por nombre Y monto (no solo nombre): "Bono $5,000" y
+		// "Bono $8,000" son plantillas legítimamente distintas, pero volver a
+		// marcar la misma entrada dos veces no debe dejar dos chips iguales.
+		const existentes = await db.query.entradasFrecuentes.findMany();
+		const yaExiste = existentes.find(
+			(f) => f.nombre.toLowerCase() === nombre.toLowerCase() && f.monto === monto
+		);
+		if (yaExiste) return { success: true, id: yaExiste.id, nombre, monto };
+
+		const res = db.insert(entradasFrecuentes).values({ nombre, monto }).run();
+		return { success: true, id: Number(res.lastInsertRowid), nombre, monto };
+	},
+
+	// Quita una plantilla frecuente (no toca las entradas ya guardadas en las
+	// quincenas: el frecuente es solo la plantilla desde la que se copiaron).
+	borrarEntradaFrecuente: async ({ request }) => {
+		const form = await request.formData();
+		const id = Number(form.get('id') ?? 0);
+		if (!id) return fail(400, { error: 'id inválido' });
+
+		db.delete(entradasFrecuentes).where(eq(entradasFrecuentes.id, id)).run();
+		return { success: true, id };
 	}
 };

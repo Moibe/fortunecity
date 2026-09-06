@@ -121,6 +121,20 @@ export const entradasPreset = sqliteTable('entradas_preset', {
 		.$defaultFn(() => new Date())
 });
 
+// ── Entradas frecuentes ───────────────────────────────────────────────────────
+// Plantillas de entrada completas (nombre + monto) para repetir de una quincena
+// a otra con un solo clic. Distinto de `entradasPreset`, que solo recuerda el
+// NOMBRE para el dropdown: aquí se guarda también cuánto, que es lo que evita
+// volver a teclear el importe cada quincena.
+export const entradasFrecuentes = sqliteTable('entradas_frecuentes', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	nombre: text('nombre').notNull(),
+	monto: real('monto').notNull().default(0),
+	creado: integer('creado', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
 // ── Relaciones (query API de Drizzle) ────────────────────────────────────────
 export const deudasRelations = relations(deudas, ({ many }) => ({
 	pagos: many(pagos)
@@ -173,3 +187,5 @@ export type Entrada = typeof entradas.$inferSelect;
 export type NuevaEntrada = typeof entradas.$inferInsert;
 export type EntradaPreset = typeof entradasPreset.$inferSelect;
 export type NuevaEntradaPreset = typeof entradasPreset.$inferInsert;
+export type EntradaFrecuente = typeof entradasFrecuentes.$inferSelect;
+export type NuevaEntradaFrecuente = typeof entradasFrecuentes.$inferInsert;

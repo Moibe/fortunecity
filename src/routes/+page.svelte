@@ -416,6 +416,74 @@
     }
   }
 
+  // ── Entradas frecuentes (plantillas nombre + monto) ─────────────────────────
+  // A diferencia del catálogo de nombres de arriba (que solo recuerda el texto
+  // para el dropdown), un frecuente guarda TAMBIÉN el monto: un clic mete la
+  // entrada completa en la quincena que estés viendo, sin volver a teclearla.
+  type Frecuente = { id: number; nombre: string; monto: number };
+  let frecuentes = $state<Frecuente[]>(untrack(() => data.entradasFrecuentes ?? []));
+  // Arranca replegado: con varios guardados, la lista competiría por espacio
+  // con las entradas mismas, que es lo que se viene a ver primero.
+  let frecuentesAbiertos = $state(false);
+  let guardandoFrecuente = $state<number | null>(null); // id de la entrada en vuelo
+
+  // Una entrada ya es frecuente si existe una plantilla con su mismo nombre Y
+  // monto (misma regla de dedupe que aplica el server).
+  function yaEsFrecuente(nombre: string, monto: number) {
+    const n = nombre.trim().toLowerCase();
+    return frecuentes.some((f) => f.nombre.toLowerCase() === n && f.monto === monto);
+  }
+
+  async function guardarComoFrecuente(entrada: EntradaItem) {
+    const nombre = entrada.nombre.trim();
+    const monto = Number(entrada.monto) || 0;
+    if (!nombre || guardandoFrecuente !== null || yaEsFrecuente(nombre, monto)) return;
+    guardandoFrecuente = entrada.id;
+    try {
+      const body = new FormData();
+      body.set('nombre', nombre);
+      body.set('monto', String(monto));
+      const response = await fetch('?/agregarEntradaFrecuente', { method: 'POST', body });
+      const result = deserialize(await response.text());
+      if (result.type === 'success' && result.data) {
+        const d = result.data as { id?: number };
+        if (d.id && !frecuentes.some((f) => f.id === d.id)) {
+          // prepend: coincide con el `order by id desc` del server, así que la
+          // lista no se desincroniza con lo que mandaría un reload.
+          frecuentes = [{ id: d.id, nombre, monto }, ...frecuentes];
+        }
+      }
+    } catch (e) {
+      console.error('No se pudo guardar la entrada como frecuente', e);
+    } finally {
+      guardandoFrecuente = null;
+    }
+  }
+
+  // Mete una copia del frecuente como entrada nueva de ESTA quincena, con la
+  // fecha de hoy. A partir de ahí es una entrada normal y editable: el
+  // autoguardado la persiste igual que si la hubieras tecleado.
+  function usarFrecuente(f: Frecuente) {
+    entradas.unshift({ id: nextEntradaId++, nombre: f.nombre, monto: f.monto, fecha: hoyInput() });
+  }
+
+  // Borrado optimista: se quita ya y se revierte solo si el server falla (es
+  // barato y reversible -se puede volver a marcar-, así que no pide confirmación).
+  async function borrarFrecuente(f: Frecuente) {
+    const anteriores = frecuentes;
+    frecuentes = frecuentes.filter((x) => x.id !== f.id);
+    try {
+      const body = new FormData();
+      body.set('id', String(f.id));
+      const response = await fetch('?/borrarEntradaFrecuente', { method: 'POST', body });
+      const result = deserialize(await response.text());
+      if (result.type !== 'success') frecuentes = anteriores;
+    } catch (e) {
+      console.error('No se pudo borrar el frecuente', e);
+      frecuentes = anteriores;
+    }
+  }
+
   // Borra un nombre de Entrada del catálogo (no afecta a las entradas ya guardadas).
   async function borrarNombreEntradaDelCatalogo(nombre: string) {
     try {
@@ -1178,6 +1246,47 @@
       <div class="entradas-field">
         <button class="add" type="button" onclick={agregarEntrada}>+ Agregar entrada</button>
 
+        {#if frecuentes.length > 0}
+          <div class="frecuentes-wrap">
+            <button
+              type="button"
+              class="frecuentes-toggle"
+              onclick={() => (frecuentesAbiertos = !frecuentesAbiertos)}
+              aria-expanded={frecuentesAbiertos}
+            >
+              <svg class="frecuentes-estrella" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.5l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9Z" /></svg>
+              Tus frecuentes
+              <span class="frecuentes-conteo">{frecuentes.length}</span>
+              <svg class="frecuentes-chevron" class:abierto={frecuentesAbiertos} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            {#if frecuentesAbiertos}
+              <div class="frecuentes-list">
+                {#each frecuentes as f (f.id)}
+                  <span class="frecuente-chip">
+                    <button
+                      type="button"
+                      class="frecuente-btn"
+                      onclick={() => usarFrecuente(f)}
+                      title="Agregar «{f.nombre}» a esta quincena"
+                    >
+                      {f.nombre} · {fmt.format(f.monto)}
+                    </button>
+                    <button
+                      type="button"
+                      class="frecuente-borrar"
+                      onclick={() => borrarFrecuente(f)}
+                      aria-label="Quitar «{f.nombre}» de frecuentes"
+                      title="Quitar de frecuentes"
+                    >
+                      ×
+                    </button>
+                  </span>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
+
         <div class="entradas-head">
           <span></span>
           <button type="button" class="h-entrada-nombre sortable" onclick={() => ordenarEntradasPor('nombre')}>
@@ -1233,6 +1342,22 @@
                 />
               </div>
             </div>
+            {#if entrada.nombre.trim() !== ''}
+              {@const esFrec = yaEsFrecuente(entrada.nombre, Number(entrada.monto) || 0)}
+              <button
+                type="button"
+                class="entrada-frec-btn"
+                class:activo={esFrec}
+                onclick={() => guardarComoFrecuente(entrada)}
+                disabled={esFrec || guardandoFrecuente !== null}
+                aria-label={esFrec ? 'Ya está en frecuentes' : 'Guardar como frecuente'}
+                title={esFrec ? 'Ya está en tus frecuentes' : 'Guardar como frecuente para repetirla en otras quincenas'}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill={esFrec ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9Z" /></svg>
+              </button>
+            {:else}
+              <span class="entrada-frec-hueco" aria-hidden="true"></span>
+            {/if}
             <button type="button" class="del" onclick={() => quitarEntrada(entrada.id)} aria-label="Quitar entrada">×</button>
           </div>
         {/each}
@@ -1919,7 +2044,10 @@
   }
   .entradas-head {
     display: grid;
-    grid-template-columns: 24px 1fr 140px 130px 28px;
+    /* Mismas columnas que .entrada-row (incluida la de la estrellita, que aquí
+       queda vacía): si no coinciden, el 1fr del nombre mide distinto y los
+       títulos Fecha/Monto se despegan de sus campos. */
+    grid-template-columns: 24px 1fr 140px 130px 22px 28px;
     gap: 0.5rem;
     padding: 0 0.2rem 0.4rem;
     font-size: 0.72rem;
@@ -1948,11 +2076,130 @@
   }
   .entrada-row {
     display: grid;
-    grid-template-columns: 24px 1fr 140px 130px 28px;
+    /* La penúltima columna es la estrellita de "guardar como frecuente"
+       (el Remanente no la usa: solo llega hasta la columna del monto). */
+    grid-template-columns: 24px 1fr 140px 130px 22px 28px;
     gap: 0.5rem;
     align-items: center;
     padding: 0.22rem 0.2rem;
     border-radius: 8px;
+  }
+
+  /* ── Frecuentes: estrellita por renglón + panel de chips ─────────────────── */
+  .entrada-frec-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: rgba(255, 255, 255, 0.28);
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  .entrada-frec-btn:hover:not(:disabled) {
+    color: #fde68a;
+  }
+  .entrada-frec-btn.activo {
+    color: #fde68a;
+    cursor: default;
+  }
+  .entrada-frec-btn:disabled:not(.activo) {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  /* Mantiene la columna cuando el renglón aún no tiene nombre que guardar. */
+  .entrada-frec-hueco {
+    display: block;
+    width: 22px;
+  }
+
+  .frecuentes-wrap {
+    margin: 0.5rem 0 0.15rem;
+  }
+  .frecuentes-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.1rem;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.55);
+    font: inherit;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  .frecuentes-toggle:hover {
+    color: #fff;
+  }
+  .frecuentes-estrella {
+    color: #fde68a;
+    flex-shrink: 0;
+  }
+  .frecuentes-conteo {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.12rem 0.32rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .frecuentes-chevron {
+    transition: transform 0.18s ease;
+    flex-shrink: 0;
+  }
+  .frecuentes-chevron.abierto {
+    transform: rotate(180deg);
+  }
+  .frecuentes-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
+  }
+  .frecuente-chip {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+  }
+  .frecuente-btn {
+    padding: 0.3rem 0.65rem;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.9);
+    font: inherit;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .frecuente-btn:hover {
+    background: rgba(134, 239, 172, 0.18);
+    color: #fff;
+  }
+  .frecuente-borrar {
+    padding: 0.3rem 0.45rem;
+    background: transparent;
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .frecuente-borrar:hover {
+    background: rgba(239, 68, 68, 0.16);
+    color: #ff8585;
   }
   .entrada-marker {
     display: flex;
@@ -3012,16 +3259,21 @@
       width: min(250px, 72vw);
     }
 
-    /* Renglón de entrada: 2 líneas (marker · nombre · quitar / fecha + monto). */
+    /* Renglón de entrada: 2 líneas (marker · nombre · ★ · quitar / fecha + monto). */
     .entrada-row {
-      grid-template-columns: 24px minmax(0, 1fr) 26px;
+      grid-template-columns: 24px minmax(0, 1fr) 22px 26px;
       grid-template-areas:
-        'marker     nombre     del'
-        'fechamonto fechamonto fechamonto';
+        'marker     nombre     frec       del'
+        'fechamonto fechamonto fechamonto fechamonto';
       gap: 0.35rem 0.4rem;
       padding: 0.45rem 0.1rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.07);
       border-radius: 0;
+    }
+    .entrada-frec-btn,
+    .entrada-frec-hueco {
+      grid-area: frec;
+      justify-self: center;
     }
     .entrada-row:last-of-type {
       border-bottom: none;
