@@ -12,15 +12,23 @@
     collapsed = false,
     mobileOpen = false,
     isMobile = false,
+    usuario = null,
     toggleCollapsed,
     closeMobile
   }: {
     collapsed?: boolean;
     mobileOpen?: boolean;
     isMobile?: boolean;
+    // Forma mínima que necesita este componente -- no importamos el tipo de
+    // $lib/server/sesion aquí porque Sidebar.svelte corre también en el
+    // cliente, y SvelteKit prohíbe importar módulos de $lib/server ahí.
+    usuario?: { id: number; nombre: string } | null;
     toggleCollapsed: () => void;
     closeMobile: () => void;
   } = $props();
+
+  // El dueño: id=1 por construcción (ver ADMIN_ID en admin/+page.server.ts).
+  const esAdmin = $derived(usuario?.id === 1);
 
   let tiltX = $state(0);
   let tiltY = $state(0);
@@ -97,7 +105,25 @@
       <span class="nav-ico" aria-hidden="true"></span>
       <span>Pagos</span>
     </a>
+    {#if esAdmin}
+      <a
+        href="/admin"
+        class="nav-item"
+        aria-current={page.url.pathname === '/admin' ? 'page' : undefined}
+        onclick={() => {
+          if (isMobile) closeMobile();
+        }}
+      >
+        <span class="nav-ico" aria-hidden="true"></span>
+        <span>Usuarios</span>
+      </a>
+    {/if}
   </nav>
+
+  <a href="/logout" class="nav-item logout-item">
+    <span class="nav-ico logout-ico" aria-hidden="true"></span>
+    <span>Cerrar sesión</span>
+  </a>
 
   <div class="sidebar-footer">
     <button type="button" class="collapse-btn" onclick={handleCollapseClick} aria-label="Replegar barra">
@@ -189,6 +215,24 @@
   }
   .nav-item[aria-current='page'] .nav-ico {
     background: #86efac;
+  }
+  .logout-item {
+    flex-shrink: 0;
+    margin-top: 0.4rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .logout-item:hover {
+    color: #ff8585;
+    background: rgba(239, 68, 68, 0.1);
+  }
+  .logout-ico {
+    background: rgba(255, 255, 255, 0.25);
+  }
+  .logout-item:hover .logout-ico {
+    background: #ff8585;
   }
   .sidebar-footer {
     display: flex;

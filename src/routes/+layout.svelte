@@ -6,8 +6,14 @@
   import favicon from '$lib/assets/favicon.svg';
   import TopNav from '$lib/TopNav.svelte';
   import Sidebar from '$lib/Sidebar.svelte';
+  import { page } from '$app/state';
+  import type { PageData } from './$types';
 
-  let { children }: { children: Snippet } = $props();
+  let { children, data }: { children: Snippet; data: PageData } = $props();
+  // /login es una pantalla propia sin el chrome de topnav/sidebar (nadie
+  // autenticado la ve -- hooks.server.ts redirige antes de llegar aquí).
+  const esLogin = $derived(page.url.pathname === '/login');
+
   let collapsed = $state(false); // repliegue de escritorio (empuja el contenido)
   let mobileOpen = $state(false); // cajón abierto en móvil (superpuesto). Arranca cerrado.
   let isMobile = $state(false);
@@ -59,13 +65,17 @@
   <link rel="icon" href={favicon} />
 </svelte:head>
 
-<TopNav onMenu={toggleSidebar} />
-<Sidebar {collapsed} {mobileOpen} {isMobile} {toggleCollapsed} {closeMobile} />
-<main class={collapsed ? 'collapsed' : ''}>
-  <div class="work-scroll">
-    {@render children()}
-  </div>
-</main>
+{#if esLogin}
+  {@render children()}
+{:else}
+  <TopNav onMenu={toggleSidebar} />
+  <Sidebar {collapsed} {mobileOpen} {isMobile} usuario={data.usuario} {toggleCollapsed} {closeMobile} />
+  <main class={collapsed ? 'collapsed' : ''}>
+    <div class="work-scroll">
+      {@render children()}
+    </div>
+  </main>
+{/if}
 
 <style>
   :global(:root) {

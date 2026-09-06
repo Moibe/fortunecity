@@ -1,6 +1,25 @@
 import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 
+// ── Usuario ──────────────────────────────────────────────────────────────────
+// Login por "código de acceso" compartido (sin usuario/contraseña) — mismo
+// patrón que el proyecto de nutrición, pero self-contained (sin backend
+// aparte): la tabla vive aquí mismo. El primer usuario (id=1) es el dueño
+// por construcción, sin columna de rol.
+export const usuarios = sqliteTable('usuarios', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	nombre: text('nombre').notNull(),
+	codigoAcceso: text('codigo_acceso').notNull().unique(),
+	activo: integer('activo', { mode: 'boolean' }).notNull().default(true),
+	// Se sube (+1) para revocar todas las sesiones de este usuario sin tocar
+	// a los demás: la cookie trae la versión que tenía al iniciar sesión, y
+	// un mismatch la invalida.
+	tokenVersion: integer('token_version').notNull().default(1),
+	creado: integer('creado', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
 // ── Deuda ──────────────────────────────────────────────────────────────────
 // A quién le debo y cuánto. Iremos agregando más campos después.
 export const deudas = sqliteTable('deudas', {
@@ -138,6 +157,8 @@ export const renglonesRelations = relations(renglones, ({ one }) => ({
 }));
 
 // ── Tipos inferidos (úsalos en tu código server) ────────────────────────────
+export type Usuario = typeof usuarios.$inferSelect;
+export type NuevoUsuario = typeof usuarios.$inferInsert;
 export type Deuda = typeof deudas.$inferSelect;
 export type NuevaDeuda = typeof deudas.$inferInsert;
 export type Pago = typeof pagos.$inferSelect;
