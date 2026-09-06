@@ -286,6 +286,7 @@
   }
   function elegirTipo(g: Gasto, valor: string) {
     g.tipo = valor;
+    marcarTipoManual(g.id); // elegirlo del dropdown también cuenta como decisión propia
     openTipoFor = null;
   }
 
@@ -863,6 +864,7 @@
     editandoNombreFor = null;
     openNotasFor = null;
     notaGuardadaFlash = null;
+    tipoAutocompletado = new Set(); // los ids son locales a la quincena que se va
     editandoQuincena = false;
     nuevoGastoId = null;
     dragGastoId = null;
@@ -1158,6 +1160,68 @@
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onEnd);
     window.addEventListener('pointercancel', onEnd);
+  }
+
+  // ── Adivinar el Tipo por el concepto ────────────────────────────────────────
+  // Si repites un nombre de proyecto que ya usaste, el Tipo se autocompleta
+  // solo. La base viene del server (historial de TODAS las quincenas); encima
+  // se superpone lo capturado en esta misma quincena, para que una decisión
+  // recién tomada aquí valga sin esperar a recargar.
+  const tipoPorConcepto = $derived.by((): Record<string, string> => {
+    const mapa: Record<string, string> = { ...(data.tipoPorConcepto ?? {}) };
+    for (const g of gastos) {
+      const nombre = g.nombre.trim().toLowerCase();
+      const tipo = g.tipo.trim();
+      if (nombre && tipo) mapa[nombre] = tipo;
+    }
+    return mapa;
+  });
+
+  // Ids de los renglones cuyo Tipo lo puso la sugerencia (no el usuario): solo
+  // esos se pueden re-sugerir o retirar solos. En cuanto tocas el Tipo a mano,
+  // el id sale de aquí y ya nunca se pisa.
+  let tipoAutocompletado = $state<Set<number>>(new Set());
+  function marcarTipoManual(id: number) {
+    if (!tipoAutocompletado.has(id)) return;
+    const s = new Set(tipoAutocompletado);
+    s.delete(id);
+    tipoAutocompletado = s;
+  }
+
+  // Coincide con el concepto igual, o con uno que el nombre EXTIENDA por
+  // palabras ("Tanda" sugiere también para "Tanda grande", pero no para
+  // "Tandarica"). Gana el concepto más largo, que es el más específico.
+  function tipoQueSugiere(nombre: string): string | null {
+    const n = nombre.trim().toLowerCase();
+    if (!n) return null;
+    let mejorClave = '';
+    let mejorTipo: string | null = null;
+    for (const [clave, tipo] of Object.entries(tipoPorConcepto)) {
+      if (n !== clave && !n.startsWith(clave + ' ')) continue;
+      if (clave.length >= mejorClave.length) {
+        mejorClave = clave;
+        mejorTipo = tipo;
+      }
+    }
+    return mejorTipo;
+  }
+
+  function sugerirTipo(g: Gasto) {
+    const sugerido = tipoQueSugiere(g.nombre);
+    const eraSugerido = tipoAutocompletado.has(g.id);
+    if (sugerido && sugerido.toLowerCase() !== g.tipo.trim().toLowerCase()) {
+      // Solo se escribe sobre un Tipo vacío o sobre una sugerencia previa;
+      // nunca sobre algo que el usuario haya elegido a mano.
+      if (g.tipo.trim() === '' || eraSugerido) {
+        g.tipo = sugerido;
+        tipoAutocompletado = new Set(tipoAutocompletado).add(g.id);
+      }
+    } else if (!sugerido && eraSugerido) {
+      // El nombre dejó de parecerse a nada conocido: se retira la sugerencia
+      // (solo la propia, ver arriba) para no dejar un Tipo heredado y falso.
+      g.tipo = '';
+      marcarTipoManual(g.id);
+    }
   }
 
   function agregar() {
@@ -1568,7 +1632,13 @@
               <GripVertical size={14} />
             </button>
             <span class="swatch" style="background: {colorPorGastoId.get(g.id) ?? 'rgba(255,255,255,0.3)'}"></span>
-            <input class="g-nombre" type="text" bind:value={g.nombre} placeholder="¿En qué lo gastas?" />
+            <input
+              class="g-nombre"
+              type="text"
+              bind:value={g.nombre}
+              oninput={() => sugerirTipo(g)}
+              placeholder="¿En qué lo gastas?"
+            />
             <div class="tipo-wrap">
               <input
                 class="g-tipo"
@@ -1577,6 +1647,7 @@
                 bind:value={g.tipo}
                 placeholder="Tipo (opcional)"
                 autocomplete="off"
+                oninput={() => marcarTipoManual(g.id)}
                 onfocus={() => (openTipoFor = g.id)}
                 onblur={(e) => {
                   if (renombrandoTipo !== null) return; // hay un renombre en curso; no cierres el combobox

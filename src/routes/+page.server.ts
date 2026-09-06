@@ -67,6 +67,32 @@ export const load: PageServerLoad = async ({ url }) => {
 		orderBy: (f, { desc }) => [desc(f.id)]
 	});
 
+	// Qué Tipo suele llevar cada concepto, mirando TODAS las quincenas: sirve
+	// para autocompletar el Tipo al repetir un nombre de proyecto. Se agrupa por
+	// (nombre, tipo) y luego se elige, para cada nombre, el tipo más usado —
+	// desempatando por el más reciente, para que un error puntual de captura no
+	// secuestre la sugerencia pero un cambio sostenido sí termine ganando.
+	const historialTipos = db.all<{ nombre: string; tipo: string; veces: number; ultimo: number }>(sql`
+		SELECT trim(nombre) AS nombre, trim(tipo) AS tipo, COUNT(*) AS veces, MAX(id) AS ultimo
+		FROM renglones
+		WHERE trim(nombre) <> '' AND trim(tipo) <> ''
+		GROUP BY lower(trim(nombre)), lower(trim(tipo))
+	`);
+	const mejorTipo = new Map<string, { tipo: string; veces: number; ultimo: number }>();
+	for (const fila of historialTipos) {
+		const clave = fila.nombre.toLowerCase();
+		const actual = mejorTipo.get(clave);
+		if (
+			!actual ||
+			fila.veces > actual.veces ||
+			(fila.veces === actual.veces && fila.ultimo > actual.ultimo)
+		) {
+			mejorTipo.set(clave, { tipo: fila.tipo, veces: fila.veces, ultimo: fila.ultimo });
+		}
+	}
+	const tipoPorConcepto: Record<string, string> = {};
+	for (const [clave, v] of mejorTipo) tipoPorConcepto[clave] = v.tipo;
+
 	return {
 		quincena: quincena ?? null,
 		// si se pidió una quincena específica y no existe, el cliente arranca en
@@ -87,7 +113,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			nombre: f.nombre,
 			tipo: f.tipo,
 			monto: f.monto
-		}))
+		})),
+		tipoPorConcepto
 	};
 };
 
